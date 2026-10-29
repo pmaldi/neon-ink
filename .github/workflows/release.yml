@@ -41,8 +41,12 @@ jobs:
         run: |
           version=${GITHUB_REF_NAME#v}
           node scripts/changelog-notes.js "$version" > notes.md
+          # Version portable : l'exécutable seul, sans installation (WebView2 requis, déjà présent sur Windows 10 et 11).
+          portable="NeonInk_${version}_x64_portable.exe"
+          cp src-tauri/target/release/neon-ink.exe "$portable"
           gh release create "$GITHUB_REF_NAME" \
             --title "NeonInk $version" \
             --notes-file notes.md \
             src-tauri/target/release/bundle/nsis/*.exe \
-            src-tauri/target/release/bundle/msi/*.msi
+            src-tauri/target/release/bundle/msi/*.msi \
+            "$portable"
