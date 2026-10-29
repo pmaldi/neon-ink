@@ -7,6 +7,14 @@ et le projet respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Ajouté
+- Mise à jour depuis l'application : le menu de l'icône propose d'installer la nouvelle version dès sa publication.
+- Version portable : chaque release contient aussi l'exécutable seul, sans installation.
+- En mode étapes, glisser dessine un trait ou une forme ; un simple clic pose toujours la pastille suivante.
+
+### Modifié
+- F10 masque les tracés en quittant le dessin et les réaffiche au F10 suivant, sur le même écran.
+
 ## [0.2.0] - 2026-10-29
 
 ### Ajouté

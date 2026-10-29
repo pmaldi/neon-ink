@@ -1,28 +1,29 @@
 # NeonInk
 
 Dessin néon par-dessus l'écran, pour présenter, expliquer ou annoter n'importe quelle application.
-Appuyez sur **F10**, dessinez, puis **F10** à nouveau : vos tracés restent affichés et l'écran redevient utilisable normalement (souris et clavier). **Échap** efface tout et quitte le dessin.
+Appuyez sur **F10**, dessinez, puis **F10** à nouveau : les tracés sont masqués et l'écran redevient utilisable normalement. Un nouveau **F10** les réaffiche tels quels. **Échap** efface tout et quitte le dessin.
 
-[Télécharger la dernière version](https://github.com/pmaldi/neon-ink/releases/latest)
+[Télécharger la dernière version](https://github.com/pmaldi/neon-ink/releases/latest) : l'installateur (`…-setup.exe` ou `.msi`) ou la version portable (`…_portable.exe`, à lancer directement, sans installation).
 
 - Trait néon : il naît « chauffé à blanc » puis refroidit vers sa couleur, et une comète lumineuse le parcourt quand on lève le stylo
 - Reconnaissance de formes : trait droit, courbe, cercle, ellipse, carré, rectangle, triangle. Le tracé se transforme en forme propre avec une animation
 - Gomme entière (le trait se consume en étincelles) ou gomme précise (n'enlève qu'une partie du trait)
-- Étapes numérotées : chaque clic pose une pastille ①, ②, ③… reliée à la précédente par une flèche courbe. Effacer une étape renumérote les suivantes
+- Étapes numérotées : chaque clic pose une pastille ①, ②, ③… reliée à la précédente par une flèche courbe. Glisser dessine un trait ou une forme sans quitter le mode. Effacer une étape renumérote les suivantes
 - Plusieurs écrans : le calque s'ouvre sur l'écran où se trouve la souris
-- Léger : aucune image n'est calculée quand rien ne bouge, et la fenêtre est masquée quand l'écran est vide
+- Léger : aucune image n'est calculée quand rien ne bouge, et la fenêtre est masquée hors du mode dessin
+- Mise à jour intégrée : l'icône de notification propose d'installer la nouvelle version dès sa sortie
 
 ## Raccourcis
 
 | Touche | Action |
 |---|---|
-| **F10** | Mode dessin on/off, les tracés restent visibles (raccourci global) |
+| **F10** | Mode dessin on/off : masque les tracés, puis les réaffiche (raccourci global) |
 | **Échap** | Tout effacer et quitter le dessin |
 | **R G B Y O P V C W K** | Rouge, vert, bleu, jaune, orange, rose, violet, cyan, blanc, noir |
 | **D** | Stylo |
 | **E** / clic droit maintenu | Gomme : efface le trait entier |
 | **T** | Gomme précise : efface seulement la partie touchée |
-| **S** | Étapes numérotées (1 → 2 → 3) |
+| **S** | Étapes numérotées (1 → 2 → 3) : clic = pastille, glisser = trait ou forme |
 | **N** | Nouvelle séquence d'étapes (repart à 1) |
 | **F** | Formes auto activées / désactivées |
 | **Maj** en relâchant | Garder ce tracé à main levée |
@@ -32,7 +33,7 @@ Appuyez sur **F10**, dessinez, puis **F10** à nouveau : vos tracés restent aff
 | **H** | Aide à l'écran |
 
 Les lettres suivent la disposition du clavier (AZERTY compris). Le bouton gomme d'un stylet de tablette fonctionne aussi.
-L'icône dans la zone de notification permet d'activer le dessin, de tout effacer ou de quitter.
+L'icône dans la zone de notification permet d'activer le dessin, de tout effacer, de mettre à jour ou de quitter.
 
 ## Technologie
 
@@ -107,7 +108,16 @@ git push --follow-tags
 ```
 
 Le script met à jour les numéros de version et le CHANGELOG, puis crée le commit et le tag. Il accepte `patch`, `minor`, `major` ou un numéro précis.
-Le push du tag lance le workflow « Release », qui compile l'application et publie l'installateur dans les [Releases GitHub](https://github.com/pmaldi/neon-ink/releases) avec les notes du CHANGELOG.
+Le push du tag lance le workflow « Release », qui compile l'application et publie les installateurs et l'exécutable portable dans les [Releases GitHub](https://github.com/pmaldi/neon-ink/releases) avec les notes du CHANGELOG.
+
+## Mises à jour
+
+Au démarrage puis toutes les 6 heures, NeonInk consulte la dernière release GitHub. Si elle est plus récente, l'entrée « Installer la version X » apparaît dans le menu de l'icône (et un message s'affiche au prochain F10).
+
+- Version installée : l'installateur est téléchargé puis lancé.
+- Version portable : l'exécutable se remplace lui-même puis redémarre (il doit se trouver dans un dossier modifiable).
+
+Si le téléchargement échoue, la page de la release s'ouvre dans le navigateur. Le code se trouve dans `src/update.js` et `src-tauri/src/updater.rs`.
 
 ## Tests
 
