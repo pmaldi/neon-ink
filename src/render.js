@@ -152,16 +152,27 @@ export function badge(ctx, x, y, r, n, color, { scale = 1, alpha = 1, ring = 1 }
   ctx.restore();
 }
 
-/** Flèche néon entre deux points, tracée jusqu'à `progress`. */
-export function arrow(ctx, a, b, color, width, progress = 1, alpha = 1) {
-  const dx = b.x - a.x, dy = b.y - a.y;
-  const len = Math.hypot(dx, dy);
-  if (len < 4 || progress <= 0) return;
-  const ux = dx / len, uy = dy / len;
-  const end = { x: a.x + dx * progress, y: a.y + dy * progress };
+/** Flèche néon courbe (Bézier quadratique a → b, point de contrôle c), tracée jusqu'à `progress`. */
+export function arrow(ctx, a, c, b, color, width, progress = 1, alpha = 1) {
+  if (progress <= 0) return;
+  const at = (t) => {
+    const u = 1 - t;
+    return { x: u * u * a.x + 2 * u * t * c.x + t * t * b.x, y: u * u * a.y + 2 * u * t * c.y + t * t * b.y };
+  };
+  const n = 32;
   const path = new Path2D();
   path.moveTo(a.x, a.y);
-  path.lineTo(end.x, end.y);
+  for (let i = 1; i <= n; i++) {
+    const p = at((i / n) * progress);
+    path.lineTo(p.x, p.y);
+  }
+  const end = at(progress);
+  // Tangente en fin de tracé : B'(t) = 2(1-t)(c-a) + 2t(b-c)
+  const tx = 2 * (1 - progress) * (c.x - a.x) + 2 * progress * (b.x - c.x);
+  const ty = 2 * (1 - progress) * (c.y - a.y) + 2 * progress * (b.y - c.y);
+  const tl = Math.hypot(tx, ty) || 1;
+  const ux = tx / tl, uy = ty / tl;
+  const len = Math.hypot(b.x - a.x, b.y - a.y);
   const head = Math.min(16, len * 0.35) * Math.min(1, progress * 1.4);
   if (head > 1) {
     const back = { x: end.x - ux * head, y: end.y - uy * head };

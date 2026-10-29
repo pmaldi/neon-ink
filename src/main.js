@@ -3,8 +3,9 @@ import { PALETTE, buildPath, neon, glowLine, glowDot, badge, arrow } from './ren
 import { dist, lerp, clamp, cumulative, subPath, pointAt, resample, polygonArea, polyDist } from './geom.js';
 
 // Durées des animations (ms)
-const T = { MORPH: 240, IN: 720, OUT: 560, HOT: 380, STEP_ARROW: 300, STEP_IN: 720 };
+const T = { MORPH: 240, IN: 720, OUT: 560, HOT: 380, STEP_ARROW: 300, STEP_IN: 720, RENUMBER: 380 };
 const STEP_R = 17;
+const ARROW_BEND = 0.18; // courbure des flèches entre étapes (0 = droites)
 const MAX_PARTICLES = 600;
 
 const tauri = window.__TAURI__;
@@ -16,7 +17,7 @@ const sctx = staticCv.getContext('2d'), fctx = fxCv.getContext('2d');
 
 const state = {
   drawMode: false,
-  tool: 'pen', // pen | eraser | steps
+  tool: 'pen', // pen | eraser | cutter | steps
   color: PALETTE.b,
   width: 5,
   shapes: true,
@@ -39,7 +40,7 @@ let lastFrame = performance.now();
 const easeOutCubic = (t) => 1 - (1 - t) ** 3;
 const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
 const easeOutBack = (t) => 1 + 2.4 * (t - 1) ** 3 + 1.4 * (t - 1) ** 2;
-const eraserRadius = () => 14 + state.width * 1.5;
+const eraserRadius = (fine = false) => (fine ? 7 + state.width : 14 + state.width * 1.5);
 
 // ───────────────────────── Canvas ─────────────────────────
 
@@ -74,7 +75,9 @@ function geometry(o) {
 }
 
 function isSettled(o, now) {
-  return !o.dying && now - o.born >= (o.kind === 'step' ? T.STEP_IN : T.IN);
+  if (o.dying) return false;
+  if (o.kind === 'step') return now - o.born >= T.STEP_IN && now - (o.renumbered ?? -1e9) >= T.RENUMBER;
+  return now - o.born >= T.IN;
 }
 
 function prevStep(o) {
@@ -124,12 +127,16 @@ function drawStepArrow(ctx, o, now) {
   if (!prev) return;
   const d = dist(prev, o);
   if (d < STEP_R * 2 + 18) return;
-  const ux = (o.x - prev.x) / d, uy = (o.y - prev.y) / d;
-  const a = { x: prev.x + ux * (STEP_R + 6), y: prev.y + uy * (STEP_R + 6) };
-  const b = { x: o.x - ux * (STEP_R + 8), y: o.y - uy * (STEP_R + 8) };
+  // Point de contrôle décalé perpendiculairement : la flèche décrit un arc.
+  const c = { x: (prev.x + o.x) / 2 + ((prev.y - o.y) / d) * d * ARROW_BEND, y: (prev.y + o.y) / 2 + ((o.x - prev.x) / d) * d * ARROW_BEND };
+  const away = (from, r) => {
+    const l = dist(from, c) || 1;
+    return { x: from.x + ((c.x - from.x) / l) * r, y: from.y + ((c.y - from.y) / l) * r };
+  };
+  const a = away(prev, STEP_R + 6), b = away(o, STEP_R + 8);
   const p = easeOutCubic(clamp((now - o.born) / T.STEP_ARROW, 0, 1));
   const alpha = o.dying ? 1 - clamp((now - o.dying) / T.OUT, 0, 1) : 1;
-  arrow(ctx, a, b, o.color, 3, p, alpha);
+  arrow(ctx, a, c, b, o.color, 3, p, alpha);
 }
 
 function drawStepBadge(ctx, o, now) {
@@ -141,6 +148,8 @@ function drawStepBadge(ctx, o, now) {
     const p = clamp((now - o.dying) / T.OUT, 0, 1);
     scale = 1 + p * 0.6;
     alpha = 1 - p;
+  } else if (o.renumbered && now - o.renumbered < T.RENUMBER) {
+    scale *= 1 + 0.28 * Math.sin((Math.PI * (now - o.renumbered)) / T.RENUMBER);
   }
   badge(ctx, o.x, o.y, STEP_R, o.n, o.color, { scale, alpha, ring: easeOutCubic(clamp(age / 400, 0, 1)) });
 }
@@ -165,6 +174,23 @@ function redrawStatic(now) {
 function kill(o, delay = 0) {
   if (o.dying) return;
   o.dying = performance.now() + delay;
+  if (o.kind === 'step') renumber(o.seq);
+}
+
+/** Les étapes restantes d'une séquence sont renumérotées 1, 2, 3… sans trou. */
+function renumber(seq) {
+  const now = performance.now();
+  let n = 0;
+  for (const o of state.objects) {
+    if (o.kind !== 'step' || o.seq !== seq || o.dying) continue;
+    n++;
+    if (o.n !== n) {
+      o.n = n;
+      o.renumbered = now;
+    }
+  }
+  if (seq === state.seq) state.nextStep = n + 1;
+  state.staticDirty = true;
 }
 
 // ───────────────────────── Particules ─────────────────────────
@@ -279,7 +305,18 @@ function drawCursor() {
   if (!state.drawMode || !p) return;
   const ctx = fctx;
   ctx.save();
-  if (state.tool === 'eraser' || state.erasing) {
+  if (state.tool === 'cutter' || state.erasing === 'fine') {
+    const r = eraserRadius(true);
+    ctx.shadowColor = 'rgba(255,255,255,0.8)';
+    ctx.shadowBlur = 8;
+    ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+    ctx.moveTo(p.x - r * 0.45, p.y);
+    ctx.lineTo(p.x + r * 0.45, p.y);
+    ctx.stroke();
+  } else if (state.tool === 'eraser' || state.erasing) {
     const r = eraserRadius();
     ctx.shadowColor = 'rgba(255,255,255,0.8)';
     ctx.shadowBlur = 10;
@@ -370,10 +407,63 @@ function eraseAt(p) {
   }
 }
 
+/** Gomme précise : retire seulement la portion du trait sous la gomme. */
+function cutAt(p) {
+  const r = eraserRadius(true);
+  const now = performance.now();
+  for (let i = 0; i < state.objects.length; i++) {
+    const o = state.objects[i];
+    if (o.dying) continue;
+    if (o.kind === 'step') {
+      if (dist(o, p) < STEP_R + r) kill(o);
+      continue;
+    }
+    geometry(o);
+    const reach = r + o.width / 2;
+    if (polyDist(p, o.pts, o.closed) >= reach) continue;
+    if (o.kind === 'dot' || o.len < 2) {
+      kill(o);
+      continue;
+    }
+    const pieces = cutPolyline(resample(o.pts, Math.max(2, Math.ceil(o.len / 3) + 1), o.closed), o.closed, p, reach);
+    if (!pieces) continue;
+    for (let k = 0; k < 6; k++) spark(p.x + (Math.random() - 0.5) * r, p.y + (Math.random() - 0.5) * r, o.color, 80, 420);
+    const pieceObjects = pieces.map((pts) => ({
+      id: nextId++, kind: 'free', color: o.color, width: o.width, pts, closed: false, smooth: true, born: now - T.IN,
+    }));
+    state.objects.splice(i, 1, ...pieceObjects);
+    i += pieceObjects.length - 1;
+    state.staticDirty = true;
+  }
+}
+
+/** Découpe une polyligne dense : renvoie les morceaux hors du disque (p, r), ou null si rien n'est touché. */
+function cutPolyline(pts, closed, p, r) {
+  let inside = pts.map((q) => dist(q, p) < r);
+  const first = inside.indexOf(true);
+  if (first < 0) return null;
+  if (closed) {
+    // On fait démarrer l'anneau dans la zone gommée pour le traiter comme un trait ouvert.
+    pts = pts.slice(first).concat(pts.slice(0, first), [pts[first]]);
+    inside = inside.slice(first).concat(inside.slice(0, first), [true]);
+  }
+  const pieces = [];
+  let run = [];
+  pts.forEach((q, i) => {
+    if (!inside[i]) run.push(q);
+    if (inside[i] || i === pts.length - 1) {
+      if (run.length > 1 && dist(run[0], run[run.length - 1]) + run.length > 4) pieces.push(run);
+      run = [];
+    }
+  });
+  return pieces;
+}
+
 function eraseAlong(p) {
+  const fine = state.erasing === 'fine';
   const from = state.lastErase ?? p;
-  const steps = Math.max(1, Math.ceil(dist(from, p) / (eraserRadius() / 2)));
-  for (let i = 1; i <= steps; i++) eraseAt(lerp(from, p, i / steps));
+  const steps = Math.max(1, Math.ceil(dist(from, p) / (eraserRadius(fine) / 2)));
+  for (let i = 1; i <= steps; i++) (fine ? cutAt : eraseAt)(lerp(from, p, i / steps));
   state.lastErase = p;
 }
 
@@ -382,7 +472,6 @@ function undo() {
     const o = state.objects[i];
     if (o.dying) continue;
     kill(o);
-    if (o.kind === 'step' && o.seq === state.seq && o.n === state.nextStep - 1) state.nextStep--;
     break;
   }
   requestRender();
@@ -399,7 +488,7 @@ function clearAll() {
 
 // ───────────────────────── Interface ─────────────────────────
 
-const TOOL_LABEL = { pen: '✎ Stylo', eraser: '⌫ Gomme', steps: '① Étapes' };
+const TOOL_LABEL = { pen: '✎ Stylo', eraser: '⌫ Gomme', cutter: '✂ Gomme précise', steps: '① Étapes' };
 let toastTimer = 0, idleTimer = 0;
 
 function updateHud() {
@@ -468,7 +557,7 @@ function onKey(e) {
   }
   if (PALETTE[k]) {
     state.color = PALETTE[k];
-    if (state.tool === 'eraser') state.tool = 'pen';
+    if (state.tool === 'eraser' || state.tool === 'cutter') state.tool = 'pen';
     toast(state.color.name);
     updateHud();
     requestRender();
@@ -477,10 +566,14 @@ function onKey(e) {
   switch (k) {
     case 'escape':
       if ($('help').classList.contains('show')) $('help').classList.remove('show');
-      else exitDrawMode();
+      else {
+        clearAll();
+        exitDrawMode();
+      }
       break;
     case 'd': setTool('pen'); break;
     case 'e': setTool(state.tool === 'eraser' ? 'pen' : 'eraser'); break;
+    case 't': setTool(state.tool === 'cutter' ? 'pen' : 'cutter'); break;
     case 's': setTool(state.tool === 'steps' ? 'pen' : 'steps'); break;
     case 'n':
       state.seq++;
@@ -526,8 +619,12 @@ fxCv.addEventListener('pointerdown', (e) => {
   const p = pos(e);
   state.pointer = p;
   const penEraser = e.pointerType === 'pen' && (e.buttons & 32);
-  if (e.button === 2 || penEraser || (e.button === 0 && state.tool === 'eraser')) {
-    state.erasing = true;
+  if (e.button === 0 && state.tool === 'cutter') {
+    state.erasing = 'fine';
+    state.lastErase = null;
+    eraseAlong(p);
+  } else if (e.button === 2 || penEraser || (e.button === 0 && state.tool === 'eraser')) {
+    state.erasing = 'whole';
     state.lastErase = null;
     eraseAlong(p);
   } else if (e.button === 0 && state.tool === 'steps') {
