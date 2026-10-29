@@ -3,7 +3,7 @@
 Dessin néon par-dessus l'écran, pour présenter, expliquer ou annoter n'importe quelle application.
 Appuyez sur **F10**, dessinez, puis **F10** à nouveau : les tracés sont masqués et l'écran redevient utilisable normalement. Un nouveau **F10** les réaffiche tels quels. **Échap** efface tout et quitte le dessin.
 
-[Télécharger la dernière version](https://github.com/pmaldi/neon-ink/releases/latest) : l'installateur (`…-setup.exe` ou `.msi`) ou la version portable (`…_portable.exe`, à lancer directement, sans installation).
+[Télécharger la dernière version](https://github.com/pmaldi/neon-ink/releases/latest) : l'installateur (`…-setup.exe` ou `.msi`, installe NeonInk dans Program Files pour tous les utilisateurs, avec les droits administrateur) ou la version portable (`…_portable.exe`, à lancer directement, sans installation).
 
 - Trait néon : il naît « chauffé à blanc » puis refroidit vers sa couleur, et une comète lumineuse le parcourt quand on lève le stylo
 - Reconnaissance de formes : trait droit, courbe, cercle, ellipse, carré, rectangle, triangle. Le tracé se transforme en forme propre avec une animation
@@ -11,7 +11,8 @@ Appuyez sur **F10**, dessinez, puis **F10** à nouveau : les tracés sont masqu�
 - Étapes numérotées : chaque clic pose une pastille ①, ②, ③… reliée à la précédente par une flèche courbe. Glisser dessine un trait ou une forme sans quitter le mode. Effacer une étape renumérote les suivantes
 - Plusieurs écrans : le calque s'ouvre sur l'écran où se trouve la souris
 - Léger : aucune image n'est calculée quand rien ne bouge, et la fenêtre est masquée hors du mode dessin
-- Mise à jour intégrée : l'icône de notification propose d'installer la nouvelle version dès sa sortie
+- Tableau noir ou blanc : un fond opaque pour dessiner sur une page vierge
+- Mises à jour automatiques : la nouvelle version s'installe d'elle-même quand NeonInk ne sert pas
 
 ## Raccourcis
 
@@ -30,10 +31,12 @@ Appuyez sur **F10**, dessinez, puis **F10** à nouveau : les tracés sont masqu�
 | **Ctrl+Z** / **Retour arrière** | Annuler le dernier élément |
 | **Suppr** / **X** | Tout effacer (animé) |
 | **Molette** / **+ −** | Épaisseur du trait |
+| **Maj+K** / **Maj+W** | Tableau noir / tableau blanc (même touche : retour à l'écran) |
 | **H** | Aide à l'écran |
 
 Les lettres suivent la disposition du clavier (AZERTY compris). Le bouton gomme d'un stylet de tablette fonctionne aussi.
-L'icône dans la zone de notification permet d'activer le dessin, de tout effacer, de mettre à jour ou de quitter.
+L'icône dans la zone de notification permet d'activer le dessin, de tout effacer, de mettre à jour, de choisir les mises à jour automatiques et le lancement avec Windows, ou de quitter.
+Relancer NeonInk alors qu'il tourne déjà (menu Démarrer) active simplement le dessin.
 
 ## Technologie
 
@@ -78,9 +81,13 @@ npm run build
 ```
 
 Les installateurs sont créés dans `src-tauri/target/release/bundle/` (`nsis/NeonInk_…_x64-setup.exe` et `msi/`).
-L'exécutable seul se trouve dans `src-tauri/target/release/neon-ink.exe`.
+L'exécutable seul se trouve dans `src-tauri/target/release/NeonInk.exe`.
 
 Sans rien installer : le workflow GitHub Actions (`.github/workflows/build.yml`) compile l'application sur une machine Windows à chaque push et met l'installateur à disposition dans l'onglet « Actions ».
+Il teste aussi, sur la session Windows du runner :
+
+- l'affichage du calque en mode dessin au-dessus d'une page Edge animée (`scripts/ci/occlusion_test.py`) ;
+- l'installation, la migration depuis une ancienne version installée dans AppData, la mise à jour passive avec relance et la désinstallation (`scripts/ci/install_test.ps1`).
 
 ## Tester l'interface dans un navigateur
 
@@ -112,18 +119,25 @@ Le push du tag lance le workflow « Release », qui compile l'application et pub
 
 ## Mises à jour
 
-Au démarrage puis toutes les 6 heures, NeonInk consulte la dernière release GitHub. Si elle est plus récente, l'entrée « Installer la version X » apparaît dans le menu de l'icône (et un message s'affiche au prochain F10).
+NeonInk consulte la dernière release GitHub 15 secondes après son démarrage, puis toutes les 2 heures.
 
-- Version installée : l'installateur est téléchargé puis lancé.
+Avec « Installer les mises à jour automatiquement » (coché par défaut dans le menu de l'icône), la nouvelle version s'installe dès que NeonInk est inactif : pas de dessin en cours ni de tracé gardé en mémoire. Sinon, l'entrée « Installer la version X » apparaît dans le menu.
+
+- Version installée : l'installateur se lance en mode passif (barre de progression, aucune question) puis relance NeonInk. Windows demande l'autorisation administrateur, l'application étant dans Program Files.
 - Version portable : l'exécutable se remplace lui-même puis redémarre (il doit se trouver dans un dossier modifiable).
 
-Si le téléchargement échoue, la page de la release s'ouvre dans le navigateur. Le code se trouve dans `src/update.js` et `src-tauri/src/updater.rs`.
+Au passage en mode dessin suivant, un message confirme la nouvelle version. Si une installation demandée depuis le menu échoue, la page de la release s'ouvre dans le navigateur. Le code se trouve dans `src/update.js` et `src-tauri/src/updater.rs`.
 
 ## Tests
 
 ```bash
 npm test
 ```
+
+## Écran figé pendant le dessin
+
+Sur certains écrans à fréquence variable (G-Sync, FreeSync, 120 Hz et plus, HDR), Windows cale le rafraîchissement sur l'application active. En mode dessin, c'est NeonInk : un point invisible y bouge en continu pour que l'écran reste animé.
+Si l'image se fige malgré tout, désactivez « Optimisations pour les jeux en fenêtre » (Paramètres > Système > Écran > Graphiques) ou le G-Sync « fenêtré et plein écran » du panneau NVIDIA, puis signalez-le.
 
 ## Portage macOS / Linux
 

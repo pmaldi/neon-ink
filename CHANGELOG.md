@@ -7,10 +7,25 @@ et le projet respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Ajouté
+- Tableau noir (**Maj+K**) et tableau blanc (**Maj+W**) : un fond opaque pour dessiner sur une page vierge ; la même touche revient à l'écran.
+- Mises à jour automatiques : recherche au démarrage puis toutes les 2 heures, installation dès que NeonInk est inactif. Désactivable dans le menu de l'icône.
+- Lancement avec Windows, activé au premier démarrage et réglable dans le menu de l'icône.
+- Une seule instance : relancer NeonInk active le dessin au lieu d'ouvrir une deuxième copie.
+- Tests Windows automatisés : affichage du calque, installation, migration, mise à jour et désinstallation.
+
+### Modifié
+- Installation dans Program Files pour tous les utilisateurs, comme un logiciel classique (droits administrateur demandés). L'ancienne copie installée dans AppData est désinstallée automatiquement.
+- Installateur en français, avec l'éditeur, la description et le site du projet ; l'exécutable s'appelle désormais `NeonInk.exe`.
+
+### Corrigé
+- L'écran pouvait rester figé pendant le dessin avec la fréquence variable ou le HDR : le calque produit désormais une image à chaque rafraîchissement, et il est déclaré comme fenêtre flottante (Chrome, Edge et les applications Electron ne le prennent plus pour une fenêtre qui les masque).
+- L'installation échouait (« Error opening file for writing ») quand NeonInk tournait encore ou que le dossier choisi exigeait les droits administrateur.
+
 ## [0.3.1] - 2026-10-29
 
 ### Corrigé
-- L'image ne se fige plus derrière le calque pendant le dessin : Windows prenait le calque pour une application plein écran et cessait de rafraîchir les fenêtres situées dessous.
+- Tentative de correction de l'image figée derrière le calque (calque d'un pixel plus petit que l'écran) ; insuffisante, voir la version suivante.
 
 ## [0.3.0] - 2026-10-29
 
