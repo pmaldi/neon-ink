@@ -12,6 +12,30 @@ use tauri_plugin_global_shortcut::{Code, Shortcut, ShortcutState};
 
 static DRAW_MODE: AtomicBool = AtomicBool::new(false);
 
+/// Sous Windows, on mémorise la fenêtre active avant de prendre la main, pour lui
+/// rendre le clavier en quittant le dessin (sinon la frappe semble « gelée »).
+#[cfg(windows)]
+mod focus {
+    use std::sync::atomic::{AtomicIsize, Ordering};
+    use windows_sys::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, SetForegroundWindow};
+
+    static PREVIOUS: AtomicIsize = AtomicIsize::new(0);
+
+    pub fn remember(own: isize) {
+        let current = unsafe { GetForegroundWindow() } as isize;
+        if current != 0 && current != own {
+            PREVIOUS.store(current, Ordering::SeqCst);
+        }
+    }
+
+    pub fn restore() {
+        let previous = PREVIOUS.swap(0, Ordering::SeqCst);
+        if previous != 0 {
+            unsafe { SetForegroundWindow(previous as _) };
+        }
+    }
+}
+
 fn overlay(app: &AppHandle) -> Option<WebviewWindow> {
     app.get_webview_window("overlay")
 }
@@ -42,6 +66,8 @@ fn apply_draw_mode(app: &AppHandle, on: bool) {
     DRAW_MODE.store(on, Ordering::SeqCst);
     if let Some(win) = overlay(app) {
         if on {
+            #[cfg(windows)]
+            focus::remember(win.hwnd().map(|h| h.0 as isize).unwrap_or(0));
             fit_to_cursor_monitor(&win);
             let _ = win.show();
             let _ = win.set_ignore_cursor_events(false);
@@ -49,6 +75,8 @@ fn apply_draw_mode(app: &AppHandle, on: bool) {
             let _ = win.set_focus();
         } else {
             let _ = win.set_ignore_cursor_events(true);
+            #[cfg(windows)]
+            focus::restore();
         }
     }
     let _ = app.emit("draw-mode", on);
