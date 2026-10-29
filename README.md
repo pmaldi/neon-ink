@@ -13,6 +13,7 @@ Appuyez sur **F10**, dessinez, puis **F10** à nouveau : les tracés sont masqu�
 - Léger : aucune image n'est calculée quand rien ne bouge, et la fenêtre est masquée hors du mode dessin
 - Tableau noir ou blanc : un fond opaque pour dessiner sur une page vierge
 - Mises à jour automatiques : la nouvelle version s'installe d'elle-même quand NeonInk ne sert pas
+- Raccourcis personnalisables dans un fichier de configuration, rechargé à chaud
 
 ## Raccourcis
 
@@ -35,6 +36,20 @@ Appuyez sur **F10**, dessinez, puis **F10** à nouveau : les tracés sont masqu�
 | **H** | Aide à l'écran |
 
 Les lettres suivent la disposition du clavier (AZERTY compris). Le bouton gomme d'un stylet de tablette fonctionne aussi.
+
+### Personnaliser les raccourcis
+
+Menu de l'icône › **Personnaliser les raccourcis…** ouvre `config.json` (dans `%APPDATA%\com.patrice.neonink\`) dans le Bloc-notes. NeonInk le recharge dès qu'il est enregistré, raccourci global compris, et l'aide (**H**) affiche toujours les touches en vigueur.
+
+```json
+"raccourcis": {
+  "basculerDessin": "F9",
+  "annuler": ["Ctrl+Z", "Backspace"],
+  "tableauNoir": "Shift+K"
+}
+```
+
+Une action reçoit une touche, une combinaison (modificateurs `Ctrl`, `Alt`, `Shift`) ou une liste de choix. Les actions absentes gardent leur touche d'origine ; une touche attribuée deux fois ou illisible est signalée à l'écran. Supprimer le fichier rétablit les réglages d'origine (`src/config.default.json`). La section `liens` liste les liens affichés par… un petit secret, à découvrir en mode dessin.
 L'icône dans la zone de notification permet d'activer le dessin, de tout effacer, de mettre à jour, de choisir les mises à jour automatiques et le lancement avec Windows, ou de quitter.
 Relancer NeonInk alors qu'il tourne déjà (menu Démarrer) active simplement le dessin.
 
@@ -150,4 +165,4 @@ Si l'image se fige malgré tout, désactivez « Optimisations pour les jeux en f
 - Durées d'animation : `T` dans `src/main.js`
 - Sensibilité de la reconnaissance : `ACCEPT` et les seuils dans `src/shapes.js`
 - Courbure des flèches entre étapes : `ARROW_BEND` dans `src/main.js`
-- Raccourci global : `Code::F10` dans `src-tauri/src/main.rs`
+- Raccourcis : `config.json` (voir plus haut), valeurs d'origine dans `src/config.default.json`

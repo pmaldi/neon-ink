@@ -1,0 +1,33 @@
+{
+  "_aide": "Configuration de NeonInk. Chaque raccourci est une touche (\"D\"), une combinaison (\"Ctrl+Z\", \"Shift+K\") ou une liste de choix ([\"X\", \"Delete\"]). Modificateurs : Ctrl, Alt, Shift. Touches spéciales : Escape, Delete, Backspace, Space, Enter, Tab, F1 à F12. Enregistrez le fichier : NeonInk le recharge tout seul. Supprimez-le pour revenir aux réglages d'origine.",
+  "raccourcis": {
+    "basculerDessin": "F10",
+    "effacerEtQuitter": "Escape",
+    "annuler": ["Ctrl+Z", "Backspace"],
+    "toutEffacer": ["Delete", "X"],
+    "epaisseurPlus": ["+", "="],
+    "epaisseurMoins": ["-", "_"],
+    "aide": ["H", "?", "F1"],
+    "stylo": "D",
+    "gomme": "E",
+    "gommePrecise": "T",
+    "etapes": "S",
+    "nouvelleSequence": "N",
+    "formesAuto": "F",
+    "tableauNoir": "Shift+K",
+    "tableauBlanc": "Shift+W",
+    "couleurRouge": "R",
+    "couleurVert": "G",
+    "couleurBleu": "B",
+    "couleurJaune": "Y",
+    "couleurOrange": "O",
+    "couleurRose": "P",
+    "couleurViolet": "V",
+    "couleurCyan": "C",
+    "couleurBlanc": "W",
+    "couleurNoir": "K"
+  },
+  "liens": [
+    { "nom": "GitHub", "url": "https://github.com/pmaldi/neon-ink" }
+  ]
+}

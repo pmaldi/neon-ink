@@ -138,29 +138,67 @@ body.drawing #hud.idle { opacity: 0.38; }
 #toast.show { opacity: 1; transform: translate(-50%, 0) scale(1); }
 
 /* Aide */
+/* ───────── Aide : panneau animé ───────── */
+
+@property --spin {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
 #help {
   position: fixed;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -48%) scale(0.97);
-  width: min(880px, calc(100vw - 32px));
-  padding: 26px 30px 22px;
-  border-radius: 18px;
-  background: rgba(9, 11, 20, 0.92);
-  color: var(--text);
+  inset: 0;
+  display: grid;
+  place-items: center;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 180ms ease, transform 220ms ease;
-  border: 1px solid color-mix(in srgb, var(--c) 40%, transparent);
-  box-shadow: 0 0 40px color-mix(in srgb, var(--c) 25%, transparent), 0 20px 60px rgba(0, 0, 0, 0.55);
+  background: radial-gradient(ellipse at center, rgba(4, 5, 12, 0.35), rgba(4, 5, 12, 0.7));
+  transition: opacity 200ms ease;
 }
-#help.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+#help.show { opacity: 1; }
+
+.help-panel {
+  position: relative;
+  width: min(900px, calc(100vw - 32px));
+  padding: 26px 30px 18px;
+  border-radius: 18px;
+  color: var(--text);
+  /* Bordure néon tournante : dégradé conique visible seulement dans la bordure. */
+  border: 1.5px solid transparent;
+  background:
+    linear-gradient(rgba(9, 11, 20, 0.94), rgba(9, 11, 20, 0.94)) padding-box,
+    conic-gradient(from var(--spin), var(--c), #ff3bd4, #14f1ff, #a35bff, var(--c)) border-box;
+  box-shadow: 0 0 46px color-mix(in srgb, var(--c) 28%, transparent), 0 24px 70px rgba(0, 0, 0, 0.6);
+  transform: perspective(900px) rotateX(14deg) translateY(26px) scale(0.86);
+  filter: blur(6px);
+  transition: transform 260ms ease, filter 200ms ease;
+}
+#help.show .help-panel {
+  transform: none;
+  filter: none;
+  transition: transform 520ms cubic-bezier(0.2, 1.35, 0.35, 1), filter 260ms ease;
+  animation: spin 6s linear infinite;
+}
+@keyframes spin { to { --spin: 360deg; } }
+
 #help h1 {
-  margin: 0 0 16px;
-  font-size: 20px;
-  letter-spacing: 0.04em;
-  text-shadow: 0 0 12px var(--c);
+  margin: 0 0 18px;
+  font-size: 22px;
+  letter-spacing: 0.08em;
 }
+/* Le titre s'allume comme une enseigne au néon, avec deux ratés. */
+#help.show .neon-word { animation: neon-on 900ms steps(1) both; }
+.neon-word { text-shadow: 0 0 6px var(--c), 0 0 18px var(--c), 0 0 34px var(--c); }
+@keyframes neon-on {
+  0% { opacity: 0.15; text-shadow: none; }
+  12% { opacity: 1; }
+  18% { opacity: 0.2; text-shadow: none; }
+  30% { opacity: 1; }
+  36% { opacity: 0.35; text-shadow: none; }
+  48%, 100% { opacity: 1; }
+}
+
 #help .cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px; }
 #help h2 { margin: 0 0 10px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); }
 #help dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 7px 12px; align-items: baseline; font-size: 13px; }
@@ -175,6 +213,16 @@ body.drawing #hud.idle { opacity: 0.38; }
   font-size: 12px;
 }
 #help dd { margin: 0; color: #cfd3ea; }
+
+/* Les lignes arrivent en cascade. */
+#help dt, #help dd { opacity: 0; transform: translateX(-8px); transition: opacity 120ms ease, transform 120ms ease; }
+#help.show dt, #help.show dd {
+  opacity: 1;
+  transform: none;
+  transition: opacity 260ms ease, transform 320ms cubic-bezier(0.2, 1.2, 0.4, 1);
+  transition-delay: calc(140ms + var(--i, 0) * 16ms);
+}
+
 #help .colors dd::before {
   content: "";
   display: inline-block;
@@ -185,6 +233,40 @@ body.drawing #hud.idle { opacity: 0.38; }
   background: var(--k);
   box-shadow: 0 0 8px var(--k);
 }
+#help.show .colors dd::before { animation: pulse 1.8s ease-in-out infinite; animation-delay: calc(var(--i, 0) * -170ms); }
+@keyframes pulse { 50% { box-shadow: 0 0 2px var(--k); transform: scale(0.8); } }
+
+.help-foot { margin: 16px 0 0; font-size: 11.5px; color: var(--muted); text-align: center; }
+
+/* ───────── Petit secret (K, A, L) ───────── */
+
+#egg {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 300ms ease;
+}
+#egg.show { opacity: 1; pointer-events: auto; cursor: default; }
+#egg pre {
+  margin: 0;
+  padding: 22px 28px;
+  border-radius: 14px;
+  background: rgba(5, 6, 14, 0.9);
+  border: 1px solid rgba(20, 241, 255, 0.35);
+  box-shadow: 0 0 40px rgba(20, 241, 255, 0.25);
+  font: 600 15px/1.35 "Cascadia Mono", Consolas, "DejaVu Sans Mono", monospace;
+  color: #bdf8ff;
+  text-shadow: 0 0 8px rgba(20, 241, 255, 0.8);
+  white-space: pre;
+}
+#egg .c1 { color: #ff3bd4; text-shadow: 0 0 10px #ff3bd4; }
+#egg .c2 { color: #ffe14d; text-shadow: 0 0 10px #ffe14d; }
+#egg .c3 { color: #39ff6a; text-shadow: 0 0 10px #39ff6a; }
+#egg a { color: #14f1ff; text-decoration: underline; cursor: pointer; }
+#egg a:hover { color: #fff; }
 
 /* Navigateur : F10 masque les tracés comme la fenêtre masquée sous Windows. */
 body.concealed #static,

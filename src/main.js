@@ -1,6 +1,8 @@
 import { recognize, smoothFree } from './shapes.js';
 import { PALETTE, buildPath, neon, glowLine, glowDot, badge, arrow } from './render.js';
 import { checkUpdate } from './update.js';
+import { buildKeymap, eventCombo, prettyCombo } from './keys.js';
+import { playEgg, eggOpen, closeEgg } from './egg.js';
 import { dist, lerp, clamp, cumulative, subPath, pointAt, resample, polygonArea, polyDist } from './geom.js';
 
 // Durées des animations (ms)
@@ -558,7 +560,8 @@ function setDrawMode(on, keepVisible = false) {
     state.pending = null;
     state.erasing = false;
     state.pointer = null;
-    $('help').classList.remove('show');
+    toggleHelp(false);
+    closeEgg();
   }
   requestRender();
 }
@@ -569,71 +572,182 @@ function exitDrawMode() {
   else setDrawMode(false, true);
 }
 
+// ───────────────────────── Raccourcis ─────────────────────────
+
+const COLOR_ACTIONS = {
+  couleurRouge: 'r', couleurVert: 'g', couleurBleu: 'b', couleurJaune: 'y', couleurOrange: 'o',
+  couleurRose: 'p', couleurViolet: 'v', couleurCyan: 'c', couleurBlanc: 'w', couleurNoir: 'k',
+};
+
+// Remplacés par la configuration (config.json via Tauri, valeurs d'origine dans le navigateur).
+let keymap = buildKeymap({ basculerDessin: 'F10', effacerEtQuitter: 'Escape' });
+let links = [];
+
+function applyConfig(config) {
+  keymap = buildKeymap(config.raccourcis);
+  links = config.liens ?? [];
+  renderHelp();
+  const errors = [...(config.erreurs ?? []), ...keymap.errors];
+  if (errors.length) toast(`Raccourcis : ${errors[0]}${errors.length > 1 ? ` (+${errors.length - 1})` : ''}`, 5000);
+}
+
+function setColor(key) {
+  state.color = PALETTE[key];
+  if (state.tool === 'eraser' || state.tool === 'cutter') state.tool = 'pen';
+  toast(state.color.name);
+  updateHud();
+  requestRender();
+}
+
+const ACTIONS = {
+  effacerEtQuitter() {
+    if (helpOpen()) toggleHelp(false);
+    else {
+      clearAll();
+      if (state.board) setBoard(state.board);
+      exitDrawMode();
+    }
+  },
+  annuler: () => undo(),
+  toutEffacer: () => clearAll(),
+  epaisseurPlus: () => changeWidth(1),
+  epaisseurMoins: () => changeWidth(-1),
+  aide: () => toggleHelp(),
+  stylo: () => setTool('pen'),
+  gomme: () => setTool(state.tool === 'eraser' ? 'pen' : 'eraser'),
+  gommePrecise: () => setTool(state.tool === 'cutter' ? 'pen' : 'cutter'),
+  etapes: () => setTool(state.tool === 'steps' ? 'pen' : 'steps'),
+  nouvelleSequence() {
+    state.seq++;
+    state.nextStep = 1;
+    if (state.tool !== 'steps') state.tool = 'steps';
+    toast('Nouvelle séquence');
+    updateHud();
+    requestRender();
+  },
+  formesAuto() {
+    state.shapes = !state.shapes;
+    toast(state.shapes ? 'Formes auto : activées' : 'Formes auto : désactivées');
+    updateHud();
+  },
+  tableauNoir: () => setBoard('black'),
+  tableauBlanc: () => setBoard('white'),
+};
+for (const [action, key] of Object.entries(COLOR_ACTIONS)) ACTIONS[action] = () => setColor(key);
+
+// Petit secret : K, A, L tapés à la suite en mode dessin.
+const SECRET = 'KAL';
+let typed = '', typedAt = 0, colorsBefore = [];
+
+function watchSecret(e) {
+  if (e.key.length !== 1 || e.ctrlKey || e.altKey || e.metaKey) {
+    typed = '';
+    return false;
+  }
+  const now = performance.now();
+  if (now - typedAt > 1500) typed = '';
+  typedAt = now;
+  colorsBefore = [...colorsBefore, state.color].slice(-SECRET.length);
+  typed = (typed + e.key.toUpperCase()).slice(-SECRET.length);
+  if (typed !== SECRET) return false;
+  typed = '';
+  // « K » a choisi le noir au passage : on rend la couleur d'avant.
+  state.color = colorsBefore[0] ?? state.color;
+  updateHud();
+  playEgg({
+    version: appVersion ?? 'dev',
+    links,
+    openLink: (url) => (tauri ? invoke('open_link', { url }) : window.open(url, '_blank')),
+    firework,
+  });
+  return true;
+}
+
+/** Gerbe d'étincelles multicolores (utilisée par le petit secret). */
+function firework(x, y) {
+  const colors = Object.values(PALETTE).filter((c) => c !== PALETTE.k);
+  for (let i = 0; i < 46; i++) spark(x, y, colors[i % colors.length], 260, 1100);
+  requestRender();
+}
+
 function onKey(e) {
-  // Hors Tauri (navigateur, pour le développement), F10 bascule localement.
-  if (!tauri && e.key === 'F10') {
+  const combo = eventCombo(e);
+  const action = keymap.map.get(combo);
+  // Hors Tauri (navigateur, pour le développement), le raccourci global bascule localement.
+  if (!tauri && action === 'basculerDessin') {
     e.preventDefault();
     setDrawMode(!state.drawMode);
     return;
   }
   if (!state.drawMode) return;
   e.preventDefault();
-  const k = e.key.toLowerCase();
+  if (eggOpen()) {
+    closeEgg();
+    return;
+  }
+  if (watchSecret(e)) return;
+  if (action && ACTIONS[action]) ACTIONS[action]();
+}
 
-  if (e.ctrlKey || e.metaKey) {
-    if (k === 'z') undo();
-    return;
+// ───────────────────────── Aide ─────────────────────────
+
+const HELP_SECTIONS = [
+  ['Général', [
+    ['basculerDessin', 'Dessin on/off (masque et réaffiche les tracés)'],
+    ['effacerEtQuitter', 'Tout effacer et quitter le dessin'],
+    ['annuler', 'Annuler le dernier élément'],
+    ['toutEffacer', 'Tout effacer'],
+    ['epaisseurPlus', 'Trait plus épais (ou molette)'],
+    ['epaisseurMoins', 'Trait plus fin'],
+    ['aide', 'Afficher / masquer cette aide'],
+  ]],
+  ['Outils', [
+    ['stylo', 'Stylo'],
+    ['gomme', 'Gomme : trait entier (ou clic droit)'],
+    ['gommePrecise', 'Gomme précise : une partie du trait'],
+    ['etapes', 'Étapes : clic = pastille, glisser = trait'],
+    ['nouvelleSequence', 'Nouvelle séquence d’étapes'],
+    ['formesAuto', 'Formes auto on/off (Maj en relâchant : main levée)'],
+    ['tableauNoir', 'Tableau noir (même touche : retour)'],
+    ['tableauBlanc', 'Tableau blanc (même touche : retour)'],
+  ]],
+  ['Couleurs', Object.entries(COLOR_ACTIONS).map(([action, key]) => [action, PALETTE[key].name, key === 'k' ? '#555566' : PALETTE[key].hex])],
+];
+
+const keysOf = (action) => (keymap.byAction[action] ?? []).map(prettyCombo).join(' · ') || '—';
+
+function renderHelp() {
+  const cols = $('help-cols');
+  cols.replaceChildren();
+  let row = 0;
+  for (const [title, entries] of HELP_SECTIONS) {
+    const section = document.createElement('section');
+    const h2 = document.createElement('h2');
+    h2.textContent = title;
+    const dl = document.createElement('dl');
+    if (title === 'Couleurs') dl.className = 'colors';
+    for (const [action, label, swatch] of entries) {
+      const dt = document.createElement('dt');
+      const dd = document.createElement('dd');
+      dt.textContent = keysOf(action);
+      dd.textContent = label;
+      if (swatch) dd.style.setProperty('--k', swatch);
+      for (const el of [dt, dd]) el.style.setProperty('--i', row);
+      row++;
+      dl.append(dt, dd);
+    }
+    section.append(h2, dl);
+    cols.append(section);
   }
-  if (e.shiftKey && (k === 'k' || k === 'w')) {
-    setBoard(k === 'k' ? 'black' : 'white');
-    return;
-  }
-  if (PALETTE[k]) {
-    state.color = PALETTE[k];
-    if (state.tool === 'eraser' || state.tool === 'cutter') state.tool = 'pen';
-    toast(state.color.name);
-    updateHud();
-    requestRender();
-    return;
-  }
-  switch (k) {
-    case 'escape':
-      if ($('help').classList.contains('show')) $('help').classList.remove('show');
-      else {
-        clearAll();
-        if (state.board) setBoard(state.board);
-        exitDrawMode();
-      }
-      break;
-    case 'd': setTool('pen'); break;
-    case 'e': setTool(state.tool === 'eraser' ? 'pen' : 'eraser'); break;
-    case 't': setTool(state.tool === 'cutter' ? 'pen' : 'cutter'); break;
-    case 's': setTool(state.tool === 'steps' ? 'pen' : 'steps'); break;
-    case 'n':
-      state.seq++;
-      state.nextStep = 1;
-      if (state.tool !== 'steps') state.tool = 'steps';
-      toast('Nouvelle séquence');
-      updateHud();
-      requestRender();
-      break;
-    case 'f':
-      state.shapes = !state.shapes;
-      toast(state.shapes ? 'Formes auto : activées' : 'Formes auto : désactivées');
-      updateHud();
-      break;
-    case 'h': case '?': case 'f1':
-      $('help').classList.toggle('show');
-      break;
-    case 'delete': case 'x':
-      clearAll();
-      break;
-    case 'backspace':
-      undo();
-      break;
-    case '+': case '=': changeWidth(1); break;
-    case '-': case '_': changeWidth(-1); break;
-  }
+  $('hud-hint').textContent = `${keysOf('aide').split(' · ')[0]} aide · ${keysOf('basculerDessin')} masquer · ${keysOf('effacerEtQuitter')} effacer`;
+}
+
+const helpOpen = () => $('help').classList.contains('show');
+
+function toggleHelp(force) {
+  const help = $('help');
+  const open = force ?? !helpOpen();
+  help.classList.toggle('show', open);
 }
 
 function changeWidth(delta) {
@@ -736,6 +850,11 @@ if (tauri) {
   tauri.event.listen('draw-mode', (e) => setDrawMode(!!e.payload.on, e.payload.keepVisible));
   tauri.event.listen('clear-all', () => clearAll());
   tauri.event.listen('check-update', () => lookForUpdate(true));
+  tauri.event.listen('config-changed', (e) => {
+    applyConfig(e.payload);
+    if (state.drawMode) toast('Raccourcis rechargés');
+  });
+  invoke('get_config').then((config) => config && applyConfig(config));
   (async () => {
     appVersion = await tauri.app.getVersion();
     updatesEnabled = (await invoke('update_config'))?.enabled ?? true;
@@ -751,7 +870,9 @@ if (tauri) {
   })();
 } else {
   document.body.classList.add('browser');
+  fetch('config.default.json').then((r) => r.json()).then(applyConfig).catch(console.error);
 }
 
 resize();
+renderHelp();
 updateHud();

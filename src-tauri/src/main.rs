@@ -1,6 +1,7 @@
 // Pas de console noire en version finale sous Windows.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod config;
 mod settings;
 mod updater;
 
@@ -13,7 +14,7 @@ use tauri::{
     AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, WebviewWindow, WindowEvent,
 };
 use tauri_plugin_autostart::ManagerExt;
-use tauri_plugin_global_shortcut::{Code, Shortcut, ShortcutState};
+use tauri_plugin_global_shortcut::ShortcutState;
 
 static DRAW_MODE: AtomicBool = AtomicBool::new(false);
 /// Vrai quand le calque n'a plus aucun tracé : au prochain F10, il suit l'écran de la souris.
@@ -197,9 +198,8 @@ fn main() {
             None,
         ))
         .plugin(
+            // Le raccourci lui-même (F10 par défaut) vient de config.json : voir config::register_global_shortcut.
             tauri_plugin_global_shortcut::Builder::new()
-                .with_shortcut(Shortcut::new(None, Code::F10))
-                .expect("raccourci F10 invalide")
                 .with_handler(|app, _shortcut, event| {
                     if event.state() == ShortcutState::Pressed {
                         toggle_draw_mode(app);
@@ -210,6 +210,8 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             set_draw_mode,
             hide_overlay,
+            config::get_config,
+            config::open_link,
             updater::update_config,
             updater::update_available,
             updater::update_status
@@ -222,6 +224,11 @@ fn main() {
             }
         })
         .setup(|app| {
+            let config = config::Config::new(app.handle());
+            config::register_global_shortcut(app.handle(), &config::get_config_value(&config));
+            app.manage(config);
+            config::watch(app.handle().clone());
+
             let mut settings = settings::Settings::load(app.handle());
             let autostart = app.autolaunch();
             if !settings.first_run_done {
@@ -235,7 +242,7 @@ fn main() {
             }
 
             let version = app.package_info().version.to_string();
-            let toggle = MenuItem::with_id(app, "toggle", "Dessiner  (F10)", true, None::<&str>)?;
+            let toggle = MenuItem::with_id(app, "toggle", "Dessiner", true, None::<&str>)?;
             let clear = MenuItem::with_id(app, "clear", "Tout effacer", true, None::<&str>)?;
             let update = MenuItem::with_id(app, "update", updater::CHECK_LABEL, true, None::<&str>)?;
             let auto_update = CheckMenuItem::with_id(
@@ -246,6 +253,7 @@ fn main() {
                 settings.auto_update,
                 None::<&str>,
             )?;
+            let shortcuts = MenuItem::with_id(app, "shortcuts", "Personnaliser les raccourcis…", true, None::<&str>)?;
             let launch_at_login = CheckMenuItem::with_id(
                 app,
                 "autostart",
@@ -265,6 +273,7 @@ fn main() {
                     &update,
                     &auto_update,
                     &launch_at_login,
+                    &shortcuts,
                     &PredefinedMenuItem::separator(app)?,
                     &about,
                     &quit,
@@ -283,6 +292,7 @@ fn main() {
                         let _ = app.emit("clear-all", ());
                     }
                     "update" => updater::on_menu_click(app),
+                    "shortcuts" => config::edit(app),
                     "auto-update" => {
                         let on = auto_update.is_checked().unwrap_or(true);
                         let mut s = settings::Settings::load(app);

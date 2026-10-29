@@ -12,6 +12,9 @@ et le projet respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 - Mises à jour automatiques : recherche au démarrage puis toutes les 2 heures, installation dès que NeonInk est inactif. Désactivable dans le menu de l'icône.
 - Lancement avec Windows, activé au premier démarrage et réglable dans le menu de l'icône.
 - Une seule instance : relancer NeonInk active le dessin au lieu d'ouvrir une deuxième copie.
+- Raccourcis personnalisables, F10 compris, dans `config.json` (menu de l'icône › Personnaliser les raccourcis…), rechargés dès l'enregistrement. L'aide affiche les touches en vigueur.
+- Panneau d'aide animé : bordure néon tournante, titre qui s'allume comme une enseigne, lignes en cascade.
+- Un petit secret se cache en mode dessin. Indice : trois lettres.
 - Tests Windows automatisés : affichage du calque, installation, migration, mise à jour et désinstallation.
 
 ### Modifié
