@@ -7,6 +7,8 @@ et le projet respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-29
+
 ### Ajouté
 - Mise à jour depuis l'application : le menu de l'icône propose d'installer la nouvelle version dès sa publication.
 - Version portable : chaque release contient aussi l'exécutable seul, sans installation.
@@ -45,6 +47,7 @@ et le projet respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 - Étapes numérotées reliées par des flèches (touche **S**, nouvelle séquence avec **N**).
 - Aide à l'écran (touche **H**) et prise en charge de plusieurs écrans.
 
-[Unreleased]: https://github.com/pmaldi/neon-ink/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/pmaldi/neon-ink/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/pmaldi/neon-ink/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/pmaldi/neon-ink/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/pmaldi/neon-ink/releases/tag/v0.1.0
