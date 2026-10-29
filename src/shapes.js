@@ -22,12 +22,12 @@ export function recognize(raw) {
   const chord = dist(a, b);
   if (chord > 0 && L / chord < 1.5) {
     const dev = pts.reduce((m, p) => Math.max(m, segDist(p, a, b)), 0);
-    if (dev / chord <= (chord < 140 ? 0.1 : 0.065)) return line(a, b);
+    if (dev / chord <= (chord < 140 ? 0.1 : 0.045)) return line(a, b);
   }
 
-  // 2. Forme fermée ?
+  // 2. Forme fermée ? Sinon, une belle courbe si le geste s'y prête.
   const end = closureIndex(pts, diag);
-  if (end < 0 || L < 1.6 * diag) return null;
+  if (end < 0 || L < 1.6 * diag) return curve(pts, diag);
 
   const ring = resample(pts.slice(0, end + 1), 72, true);
   const hull = convexHull(ring);
@@ -64,6 +64,57 @@ export function smoothFree(raw) {
   const pts = dedupe(raw, 1);
   if (pts.length < 3) return pts;
   return chaikin(rdp(pts, 0.6), 2);
+}
+
+/**
+ * Courbe de Bézier cubique ajustée aux moindres carrés (extrémités fixes),
+ * avec deux passes de reparamétrisation. Rend null si le tracé est trop tortueux.
+ */
+export function curve(pts, diag = Math.hypot(bbox(pts).w, bbox(pts).h)) {
+  const Q = resample(pts, 48);
+  const P0 = Q[0], P3 = Q[Q.length - 1];
+  if (dist(P0, P3) < diag * 0.25) return null; // boucle ou crochet : pas une courbe simple
+  let ts = Q.map((_, i) => i / (Q.length - 1));
+  let P1, P2;
+  for (let pass = 0; pass < 3; pass++) {
+    [P1, P2] = solveBezier(Q, ts, P0, P3);
+    if (!P1) return null;
+    const samples = Array.from({ length: 101 }, (_, i) => bezier(P0, P1, P2, P3, i / 100));
+    ts = Q.map((q) => {
+      let best = 0;
+      for (let i = 1; i < samples.length; i++) if (dist(samples[i], q) < dist(samples[best], q)) best = i;
+      return best / 100;
+    });
+    ts[0] = 0;
+    ts[ts.length - 1] = 1;
+  }
+  const out = Array.from({ length: 64 }, (_, i) => bezier(P0, P1, P2, P3, i / 63));
+  const err = Q.reduce((m, q) => Math.max(m, polyDist(q, out)), 0);
+  if (err > Math.max(0.06 * diag, 6)) return null;
+  return { kind: 'curve', pts: out, closed: false, smooth: true };
+}
+
+function bezier(p0, p1, p2, p3, t) {
+  const u = 1 - t;
+  const a = u * u * u, b = 3 * u * u * t, c = 3 * u * t * t, d = t * t * t;
+  return { x: a * p0.x + b * p1.x + c * p2.x + d * p3.x, y: a * p0.y + b * p1.y + c * p2.y + d * p3.y };
+}
+
+function solveBezier(Q, ts, P0, P3) {
+  let a11 = 0, a12 = 0, a22 = 0, rx1 = 0, ry1 = 0, rx2 = 0, ry2 = 0;
+  Q.forEach((q, i) => {
+    const t = ts[i], u = 1 - t;
+    const b0 = u * u * u, b1 = 3 * u * u * t, b2 = 3 * u * t * t, b3 = t * t * t;
+    const rx = q.x - b0 * P0.x - b3 * P3.x, ry = q.y - b0 * P0.y - b3 * P3.y;
+    a11 += b1 * b1; a12 += b1 * b2; a22 += b2 * b2;
+    rx1 += b1 * rx; ry1 += b1 * ry; rx2 += b2 * rx; ry2 += b2 * ry;
+  });
+  const det = a11 * a22 - a12 * a12;
+  if (Math.abs(det) < 1e-9) return [null, null];
+  return [
+    { x: (rx1 * a22 - rx2 * a12) / det, y: (ry1 * a22 - ry2 * a12) / det },
+    { x: (a11 * rx2 - a12 * rx1) / det, y: (a11 * ry2 - a12 * ry1) / det },
+  ];
 }
 
 /** Indice du point où la boucle se referme, ou -1 si le tracé reste ouvert. */

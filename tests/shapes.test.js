@@ -107,7 +107,6 @@ test('triangle', () => {
 
 test('gribouillis et courbes ouvertes restent libres', () => {
   for (const seed of seeds) {
-    assert.equal(kindOf(hand(arc(300, 300, 120, 120, 0.5), { seed })), 'free', `demi-cercle ${seed}`);
     const zig = polyline([{ x: 0, y: 0 }, { x: 60, y: 100 }, { x: 120, y: 0 }, { x: 180, y: 100 }, { x: 240, y: 0 }], 20, false);
     assert.equal(kindOf(hand(zig, { seed })), 'free', `zigzag ${seed}`);
     const star = [];
@@ -116,6 +115,15 @@ test('gribouillis et courbes ouvertes restent libres', () => {
       star.push({ x: 300 + r * Math.cos(a), y: 300 + r * Math.sin(a) });
     }
     assert.equal(kindOf(hand(polyline(star, 15), { seed })), 'free', `étoile ${seed}`);
+  }
+});
+
+test('un arc ou une vague douce devient une courbe lisse', () => {
+  for (const seed of seeds) {
+    assert.equal(kindOf(hand(arc(300, 300, 120, 120, 0.5), { seed })), 'curve', `demi-cercle ${seed}`);
+    assert.equal(kindOf(hand(arc(300, 300, 400, 400, 0.12, 4.2), { seed, wobble: 2 })), 'curve', `arc léger ${seed}`);
+    const s = Array.from({ length: 80 }, (_, i) => ({ x: 100 + i * 5, y: 300 + Math.sin((i / 79) * 2 * Math.PI) * 60 }));
+    assert.equal(kindOf(hand(s, { seed, wobble: 2 })), 'curve', `S ${seed}`);
   }
 });
 
