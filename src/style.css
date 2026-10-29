@@ -1,0 +1,156 @@
+:root {
+  --c: #2f8bff;
+  --panel: rgba(10, 12, 22, 0.82);
+  --text: #eef0ff;
+  --muted: #9097b8;
+  font-family: "Segoe UI Variable Text", "Segoe UI", "Inter", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* En dehors de Tauri (test dans un navigateur), un fond sombre pour voir le néon. */
+body.browser { background: radial-gradient(circle at 30% 20%, #1c2033, #07080d); }
+
+canvas {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  display: block;
+  touch-action: none;
+}
+
+#static { pointer-events: none; }
+body.drawing #fx { cursor: none; }
+
+/* Liseré lumineux autour de l'écran pendant le mode dessin */
+#frame {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 220ms ease, box-shadow 220ms ease;
+  box-shadow:
+    inset 0 0 0 2px color-mix(in srgb, var(--c) 85%, transparent),
+    inset 0 0 28px color-mix(in srgb, var(--c) 35%, transparent);
+}
+body.drawing #frame { opacity: 1; }
+
+/* Barre d'état */
+#hud {
+  position: fixed;
+  top: 14px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-12px);
+  transition: opacity 200ms ease, transform 260ms cubic-bezier(.2, .9, .3, 1.2);
+}
+body.drawing #hud { opacity: 1; transform: none; }
+body.drawing #hud.idle { opacity: 0.38; }
+
+.pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 16px;
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 13px;
+  white-space: nowrap;
+  border: 1px solid color-mix(in srgb, var(--c) 45%, transparent);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--c) 30%, transparent), 0 6px 24px rgba(0, 0, 0, 0.4);
+}
+.pill i { width: 1px; height: 14px; background: rgba(255, 255, 255, 0.15); }
+.pill .muted { color: var(--muted); }
+.swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--c);
+  box-shadow: 0 0 10px var(--c), 0 0 2px #fff inset;
+}
+
+/* Notification brève */
+#toast {
+  position: fixed;
+  left: 50%;
+  bottom: 64px;
+  transform: translate(-50%, 10px) scale(0.96);
+  padding: 9px 20px;
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  opacity: 0;
+  border: 1px solid color-mix(in srgb, var(--c) 50%, transparent);
+  box-shadow: 0 0 22px color-mix(in srgb, var(--c) 35%, transparent);
+  transition: opacity 160ms ease, transform 200ms ease;
+}
+#toast.show { opacity: 1; transform: translate(-50%, 0) scale(1); }
+
+/* Aide */
+#help {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -48%) scale(0.97);
+  width: min(880px, calc(100vw - 32px));
+  padding: 26px 30px 22px;
+  border-radius: 18px;
+  background: rgba(9, 11, 20, 0.92);
+  color: var(--text);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 180ms ease, transform 220ms ease;
+  border: 1px solid color-mix(in srgb, var(--c) 40%, transparent);
+  box-shadow: 0 0 40px color-mix(in srgb, var(--c) 25%, transparent), 0 20px 60px rgba(0, 0, 0, 0.55);
+}
+#help.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+#help h1 {
+  margin: 0 0 16px;
+  font-size: 20px;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 12px var(--c);
+}
+#help .cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px; }
+#help h2 { margin: 0 0 10px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); }
+#help dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 7px 12px; align-items: baseline; font-size: 13px; }
+#help dt {
+  justify-self: start;
+  white-space: nowrap;
+  padding: 1px 7px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-weight: 600;
+  font-size: 12px;
+}
+#help dd { margin: 0; color: #cfd3ea; }
+#help .colors dd::before {
+  content: "";
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: var(--k);
+  box-shadow: 0 0 8px var(--k);
+}

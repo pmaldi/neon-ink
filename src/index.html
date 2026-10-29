@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NeonInk</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <canvas id="static"></canvas>
+  <canvas id="fx"></canvas>
+
+  <div id="frame"></div>
+
+  <div id="hud">
+    <div class="pill">
+      <span class="swatch"></span><span id="hud-color"></span>
+      <i></i><span id="hud-tool"></span>
+      <i></i><span id="hud-shapes"></span>
+      <i></i><span id="hud-width"></span>
+      <i></i><span class="muted">H aide · Échap quitter</span>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <div id="help">
+    <h1>NeonInk</h1>
+    <div class="cols">
+      <section>
+        <h2>Général</h2>
+        <dl>
+          <dt>F10</dt><dd>Activer / quitter le dessin</dd>
+          <dt>Échap</dt><dd>Quitter le dessin (les tracés restent)</dd>
+          <dt>Ctrl+Z · ⌫</dt><dd>Annuler le dernier élément</dd>
+          <dt>Suppr · X</dt><dd>Tout effacer</dd>
+          <dt>Molette · + −</dt><dd>Épaisseur du trait</dd>
+          <dt>H</dt><dd>Afficher / masquer cette aide</dd>
+        </dl>
+      </section>
+      <section>
+        <h2>Outils</h2>
+        <dl>
+          <dt>D</dt><dd>Stylo</dd>
+          <dt>E</dt><dd>Gomme (ou clic droit maintenu)</dd>
+          <dt>S</dt><dd>Étapes numérotées 1 → 2 → 3</dd>
+          <dt>N</dt><dd>Nouvelle séquence d’étapes</dd>
+          <dt>F</dt><dd>Formes auto on/off</dd>
+          <dt>Maj</dt><dd>Maintenir en relâchant = main levée</dd>
+        </dl>
+      </section>
+      <section>
+        <h2>Couleurs</h2>
+        <dl class="colors">
+          <dt>R</dt><dd style="--k:#ff2d55">Rouge</dd>
+          <dt>G</dt><dd style="--k:#39ff6a">Vert</dd>
+          <dt>B</dt><dd style="--k:#2f8bff">Bleu</dd>
+          <dt>Y</dt><dd style="--k:#ffe14d">Jaune</dd>
+          <dt>O</dt><dd style="--k:#ff8a1f">Orange</dd>
+          <dt>P</dt><dd style="--k:#ff3bd4">Rose</dd>
+          <dt>V</dt><dd style="--k:#a35bff">Violet</dd>
+          <dt>C</dt><dd style="--k:#14f1ff">Cyan</dd>
+          <dt>W</dt><dd style="--k:#ffffff">Blanc</dd>
+          <dt>K</dt><dd style="--k:#555566">Noir</dd>
+        </dl>
+      </section>
+    </div>
+  </div>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>
