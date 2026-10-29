@@ -1,0 +1,26 @@
+name: Tests Windows
+
+# Contrôle sur une vraie session Windows : le calque ne doit pas figer les applications dessous.
+on:
+  workflow_dispatch:
+  push:
+    branches: ['ci/**']
+
+jobs:
+  occlusion-control:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install mss
+      - name: Témoin v0.3.1 (doit figer Edge)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download v0.3.1 -p '*portable.exe' -D old
+          python scripts/ci/occlusion_test.py old/NeonInk_0.3.1_x64_portable.exe --expect freeze --shots shots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: captures-temoin
+          path: shots
