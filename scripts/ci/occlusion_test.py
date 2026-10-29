@@ -52,17 +52,44 @@ def rate(seconds=4.0):
 
 
 def press_f10():
-    user32.keybd_event(0x79, 0, 0, 0)
+    scan = user32.MapVirtualKeyW(0x79, 0)
+    user32.keybd_event(0x79, scan, 0, 0)
     time.sleep(0.05)
-    user32.keybd_event(0x79, 0, 2, 0)
+    user32.keybd_event(0x79, scan, 2, 0)
 
 
-def overlay_info():
-    hwnd = user32.FindWindowW(None, "NeonInk")
-    if not hwnd:
-        return "introuvable"
-    ex = user32.GetWindowLongW(hwnd, -20)
-    return f"visible={bool(user32.IsWindowVisible(hwnd))} exstyle=0x{ex & 0xFFFFFFFF:08X} toolwindow={bool(ex & 0x80)}"
+def windows_of(pid):
+    """Fenêtres de premier niveau du processus : (hwnd, titre, visible, style étendu, largeur, hauteur)."""
+    found = []
+    proto = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
+
+    def cb(hwnd, _):
+        owner = ctypes.c_ulong()
+        user32.GetWindowThreadProcessId(ctypes.c_void_p(hwnd), ctypes.byref(owner))
+        if owner.value == pid:
+            title = ctypes.create_unicode_buffer(256)
+            user32.GetWindowTextW(ctypes.c_void_p(hwnd), title, 256)
+            rect = (ctypes.c_long * 4)()
+            user32.GetWindowRect(ctypes.c_void_p(hwnd), rect)
+            ex = user32.GetWindowLongW(ctypes.c_void_p(hwnd), -20) & 0xFFFFFFFF
+            found.append((hwnd, title.value, bool(user32.IsWindowVisible(ctypes.c_void_p(hwnd))), ex,
+                          rect[2] - rect[0], rect[3] - rect[1]))
+        return True
+
+    user32.EnumWindows(proto(cb), 0)
+    return found
+
+
+def overlay(pid):
+    """Le calque visible : la plus grande fenêtre visible du processus."""
+    visible = [w for w in windows_of(pid) if w[2] and w[4] * w[5] > 0]
+    return max(visible, key=lambda w: w[4] * w[5], default=None)
+
+
+def describe(w):
+    if not w:
+        return "aucune fenêtre visible"
+    return f"« {w[1]} » {w[4]}×{w[5]} exstyle=0x{w[3]:08X} toolwindow={bool(w[3] & 0x80)}"
 
 
 def screenshot(folder, name):
@@ -114,13 +141,24 @@ def main():
         env = dict(os.environ, NEONINK_NO_UPDATE="1")
         app = subprocess.Popen([args.exe], env=env)
         time.sleep(6)
-        press_f10()
-        time.sleep(3)
-        info = overlay_info()
+        if app.poll() is not None:
+            print(f"NeonInk s'est arrêté au démarrage (code {app.returncode}).")
+            return 2
+        print("Fenêtres de NeonInk avant F10 :", windows_of(app.pid))
+        shown = None
+        for _ in range(4):
+            press_f10()
+            time.sleep(2.5)
+            shown = overlay(app.pid)
+            if shown:
+                break
+        print("Fenêtres de NeonInk après F10 :", windows_of(app.pid))
+        info = describe(shown)
+        time.sleep(1)
         drawing = rate()
         screenshot(args.shots, f"{tag}-dessin.png")
         press_f10()
-        time.sleep(2)
+        time.sleep(2.5)
         after = rate()
 
         frozen = drawing < before * 0.3
@@ -136,7 +174,7 @@ def main():
         if summary:
             with open(summary, "a", encoding="utf-8") as f:
                 f.write("\n".join(lines) + "\n\n")
-        if "visible=True" not in info:
+        if not shown:
             print("Le calque ne s'est pas affiché : test non concluant.")
             return 2
         return 0 if frozen == (args.expect == "freeze") else 1
