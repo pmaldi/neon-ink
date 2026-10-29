@@ -154,3 +154,7 @@ body.drawing #hud.idle { opacity: 0.38; }
   background: var(--k);
   box-shadow: 0 0 8px var(--k);
 }
+
+/* Navigateur : F10 masque les tracés comme la fenêtre masquée sous Windows. */
+body.concealed #static,
+body.concealed #fx { visibility: hidden; }

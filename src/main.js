@@ -1,5 +1,6 @@
 import { recognize, smoothFree } from './shapes.js';
 import { PALETTE, buildPath, neon, glowLine, glowDot, badge, arrow } from './render.js';
+import { checkUpdate } from './update.js';
 import { dist, lerp, clamp, cumulative, subPath, pointAt, resample, polygonArea, polyDist } from './geom.js';
 
 // Durées des animations (ms)
@@ -7,6 +8,7 @@ const T = { MORPH: 240, IN: 720, OUT: 560, HOT: 380, STEP_ARROW: 300, STEP_IN: 7
 const STEP_R = 17;
 const ARROW_BEND = 0.18; // courbure des flèches entre étapes (0 = droites)
 const MAX_PARTICLES = 600;
+const DRAG_START = 6; // px parcourus avant qu'un clic en mode étapes devienne un trait
 
 const tauri = window.__TAURI__;
 const invoke = (cmd, args) => tauri?.core.invoke(cmd, args).catch(console.error);
@@ -25,6 +27,7 @@ const state = {
   active: null,
   erasing: false,
   lastErase: null,
+  pending: null, // clic en mode étapes : pastille, ou trait si la souris glisse
   pointer: null,
   particles: [],
   seq: 1,
@@ -329,7 +332,7 @@ function drawCursor() {
     ctx.setLineDash([]);
     ctx.fillStyle = 'rgba(255,255,255,0.08)';
     ctx.fill();
-  } else if (state.tool === 'steps') {
+  } else if (state.tool === 'steps' && !state.active) {
     ctx.restore();
     badge(ctx, p.x, p.y, STEP_R, state.nextStep, state.color, { alpha: 0.4, scale: 0.85 });
     return;
@@ -503,12 +506,12 @@ function updateHud() {
   idleTimer = setTimeout(() => hud.classList.add('idle'), 2500);
 }
 
-function toast(msg) {
+function toast(msg, ms = 900) {
   const el = $('toast');
   el.textContent = msg;
   el.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), 900);
+  toastTimer = setTimeout(() => el.classList.remove('show'), ms);
 }
 
 function setTool(tool) {
@@ -518,16 +521,23 @@ function setTool(tool) {
   requestRender();
 }
 
-function setDrawMode(on) {
+/** `keepVisible` : les tracés restent affichés le temps de leur animation (Échap). */
+function setDrawMode(on, keepVisible = false) {
   if (state.drawMode === on) return;
   state.drawMode = on;
   document.body.classList.toggle('drawing', on);
+  if (!tauri) document.body.classList.toggle('concealed', !on && !keepVisible);
   if (on) {
     state.hideRequested = false;
     window.focus();
     updateHud();
+    if (update && !update.announced) {
+      update.announced = true;
+      toast(`Mise à jour ${update.version} disponible (menu de l'icône NeonInk)`, 3500);
+    }
   } else {
     if (state.active) finishStroke(false);
+    state.pending = null;
     state.erasing = false;
     state.pointer = null;
     $('help').classList.remove('show');
@@ -535,9 +545,10 @@ function setDrawMode(on) {
   requestRender();
 }
 
+/** Échap : on quitte le dessin en laissant les tracés se consumer à l'écran. */
 function exitDrawMode() {
-  if (tauri) invoke('set_draw_mode', { on: false });
-  else setDrawMode(false);
+  if (tauri) invoke('set_draw_mode', { on: false, keepVisible: true });
+  else setDrawMode(false, true);
 }
 
 function onKey(e) {
@@ -628,7 +639,7 @@ fxCv.addEventListener('pointerdown', (e) => {
     state.lastErase = null;
     eraseAlong(p);
   } else if (e.button === 0 && state.tool === 'steps') {
-    addStep(p);
+    state.pending = p;
   } else if (e.button === 0) {
     state.active = { pts: [p], color: state.color, width: state.width };
   }
@@ -640,7 +651,11 @@ fxCv.addEventListener('pointermove', (e) => {
   const events = e.getCoalescedEvents?.() ?? [e];
   for (const ev of events.length ? events : [e]) {
     const p = pos(ev);
-    if (state.active) {
+    if (state.pending && dist(state.pending, p) >= DRAG_START) {
+      // En mode étapes, glisser dessine un trait (avec reconnaissance de formes).
+      state.active = { pts: [state.pending, p], color: state.color, width: state.width };
+      state.pending = null;
+    } else if (state.active) {
       const pts = state.active.pts;
       if (dist(pts[pts.length - 1], p) >= 1.5) pts.push(p);
     } else if (state.erasing) eraseAlong(p);
@@ -650,6 +665,8 @@ fxCv.addEventListener('pointermove', (e) => {
 });
 
 function endPointer(e) {
+  if (state.pending && e.type === 'pointerup') addStep(state.pending);
+  state.pending = null;
   if (state.active) finishStroke(e.shiftKey);
   state.erasing = false;
   requestRender();
@@ -673,9 +690,27 @@ window.addEventListener('resize', resize);
 
 // ───────────────────────── Démarrage ─────────────────────────
 
+// ───────────────────────── Mises à jour ─────────────────────────
+
+let update = null;
+
+async function lookForUpdate(manual) {
+  try {
+    update = await checkUpdate(await tauri.app.getVersion());
+    if (update) invoke('update_available', { update });
+    else if (manual) invoke('update_status', { text: 'NeonInk est à jour' });
+  } catch (err) {
+    console.warn('Recherche de mise à jour impossible', err);
+    if (manual) invoke('update_status', { text: 'Mise à jour : pas de connexion' });
+  }
+}
+
 if (tauri) {
-  tauri.event.listen('draw-mode', (e) => setDrawMode(!!e.payload));
+  tauri.event.listen('draw-mode', (e) => setDrawMode(!!e.payload.on, e.payload.keepVisible));
   tauri.event.listen('clear-all', () => clearAll());
+  tauri.event.listen('check-update', () => lookForUpdate(true));
+  setTimeout(() => lookForUpdate(false), 8000);
+  setInterval(() => lookForUpdate(false), 6 * 3600 * 1000);
 } else {
   document.body.classList.add('browser');
 }
