@@ -26,6 +26,31 @@ jobs:
         with:
           name: NeonInk-windows
           path: |
-            src-tauri/target/release/neon-ink.exe
+            src-tauri/target/release/NeonInk.exe
             src-tauri/target/release/bundle/nsis/*.exe
             src-tauri/target/release/bundle/msi/*.msi
+
+      # Tests sur la session Windows du runner (bureau réel, Edge installé)
+      - run: pip install mss
+      - name: Le calque ne fige pas les applications dessous
+        shell: bash
+        run: python scripts/ci/occlusion_test.py src-tauri/target/release/NeonInk.exe --expect live --shots shots
+      - name: Témoin — la v0.3.1 figeait Edge
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download v0.3.1 -p '*portable.exe' -D old
+          python scripts/ci/occlusion_test.py old/NeonInk_0.3.1_x64_portable.exe --expect freeze --shots shots
+      - name: Installation, migration, mise à jour et désinstallation
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $setup = (Get-ChildItem src-tauri/target/release/bundle/nsis/*-setup.exe).FullName
+          ./scripts/ci/install_test.ps1 -Setup $setup
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: captures
+          path: shots

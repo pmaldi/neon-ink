@@ -1,0 +1,28 @@
+name: Expérience occlusion
+
+on:
+  push:
+    branches: ['ci/**']
+
+jobs:
+  measure:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install mss
+      - name: Mesures
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for v in 0.3.0 0.3.1; do gh release download v$v -p '*portable.exe' -D old; done
+          for b in edge chrome; do
+            for v in 0.3.0 0.3.1; do
+              python scripts/ci/occlusion_test.py old/NeonInk_${v}_x64_portable.exe --expect freeze --browser $b --shots shots || true
+            done
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: captures-experience
+          path: shots

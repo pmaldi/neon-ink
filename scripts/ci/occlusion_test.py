@@ -111,18 +111,22 @@ def main():
     ap.add_argument("exe")
     ap.add_argument("--expect", choices=["live", "freeze"], default="live")
     ap.add_argument("--shots")
+    ap.add_argument("--browser", choices=["edge", "chrome"], default="edge")
     args = ap.parse_args()
     if args.shots:
         os.makedirs(args.shots, exist_ok=True)
-    tag = os.path.splitext(os.path.basename(args.exe))[0]
+    tag = os.path.splitext(os.path.basename(args.exe))[0] + "-" + args.browser
 
     server = http.server.ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
 
-    edge = next(p for p in [
-        r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
-        r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
-    ] if os.path.exists(p))
+    candidates = {
+        "edge": [r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+                 r"C:\Program Files\Microsoft\Edge\Application\msedge.exe"],
+        "chrome": [r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+                   r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"],
+    }[args.browser]
+    edge = next(p for p in candidates if os.path.exists(p))
     profile = tempfile.mkdtemp()
     browser = subprocess.Popen([edge, f"--user-data-dir={profile}", "--no-first-run", "--no-default-browser-check",
                                 "--start-maximized", f"--app=http://127.0.0.1:{PORT}/"])
@@ -164,9 +168,9 @@ def main():
         frozen = drawing < before * 0.3
         verdict = "FIGÉ" if frozen else "fluide"
         lines = [
-            f"### Occlusion : `{os.path.basename(args.exe)}`",
+            f"### Occlusion : `{os.path.basename(args.exe)}` sous {args.browser}",
             f"- Calque en mode dessin : {info}",
-            f"- Edge, images signalées par seconde : avant {before:.1f} · pendant le dessin {drawing:.1f} · après {after:.1f}",
+            f"- Navigateur, images signalées par seconde : avant {before:.1f} · pendant le dessin {drawing:.1f} · après {after:.1f}",
             f"- Résultat : **{verdict}** (attendu : {'figé' if args.expect == 'freeze' else 'fluide'})",
         ]
         print("\n".join(lines))
@@ -182,7 +186,7 @@ def main():
         if app:
             app.kill()
         browser.kill()
-        subprocess.run(["taskkill", "/F", "/IM", "msedge.exe"], capture_output=True)
+        subprocess.run(["taskkill", "/F", "/IM", os.path.basename(edge)], capture_output=True)
         server.shutdown()
 
 
