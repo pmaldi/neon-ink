@@ -7,6 +7,9 @@ et le projet respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Corrigé
+- L'image ne se fige plus derrière le calque pendant le dessin : Windows prenait le calque pour une application plein écran et cessait de rafraîchir les fenêtres situées dessous.
+
 ## [0.3.0] - 2026-10-29
 
 ### Ajouté

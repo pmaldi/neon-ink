@@ -63,7 +63,10 @@ fn fit_to_cursor_monitor(win: &WebviewWindow) {
     });
     let Some(m) = under_cursor.or_else(|| win.primary_monitor().ok().flatten()) else { return };
     let _ = win.set_position(PhysicalPosition::new(m.position().x, m.position().y));
-    let _ = win.set_size(PhysicalSize::new(m.size().width, m.size().height));
+    // Un pixel de moins que l'écran : une fenêtre sans bordure qui le couvre exactement
+    // est prise pour une application plein écran, et Windows cesse alors de rafraîchir
+    // ce qui est derrière (vidéos et fenêtres figées pendant le dessin).
+    let _ = win.set_size(PhysicalSize::new(m.size().width, m.size().height.saturating_sub(1)));
 }
 
 /// Active le dessin (le calque capte souris et clavier) ou le désactive.
