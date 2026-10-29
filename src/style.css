@@ -31,6 +31,37 @@ canvas {
 }
 
 #static { pointer-events: none; }
+
+/*
+ * Battement : en mode dessin, un point invisible bouge en continu pour que le calque produise
+ * une image à chaque rafraîchissement. Avec la fréquence variable (G-Sync, FreeSync, « jeux en
+ * fenêtre » de Windows), l'écran suit le rythme de l'application active : un calque immobile
+ * figerait tout le bureau. L'animation est gérée par le compositeur, sans travail JavaScript.
+ */
+#heartbeat {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 2px;
+  height: 2px;
+  background: #000;
+  opacity: 0.004;
+  pointer-events: none;
+  display: none;
+}
+body.drawing #heartbeat { display: block; animation: heartbeat 1s linear infinite alternate; }
+@keyframes heartbeat { to { transform: translateX(1px); } }
+
+/* Tableau noir ou blanc : fond opaque pour dessiner sur une page vierge (Maj+K, Maj+W) */
+#board {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 260ms ease, background-color 260ms ease;
+}
+body[data-board="black"] #board { opacity: 1; background: #050608; }
+body[data-board="white"] #board { opacity: 1; background: #f7f7f4; }
 body.drawing #fx { cursor: none; }
 
 /* Liseré lumineux autour de l'écran pendant le mode dessin */

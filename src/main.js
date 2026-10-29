@@ -28,6 +28,7 @@ const state = {
   erasing: false,
   lastErase: null,
   pending: null, // clic en mode étapes : pastille, ou trait si la souris glisse
+  board: null, // null (écran visible) | 'black' | 'white'
   pointer: null,
   particles: [],
   seq: 1,
@@ -349,7 +350,7 @@ function drawCursor() {
 }
 
 function maybeHide() {
-  if (state.drawMode || state.hideRequested || state.objects.length) return;
+  if (state.drawMode || state.hideRequested || state.objects.length || state.board) return;
   state.hideRequested = true;
   clear(fctx);
   invoke('hide_overlay');
@@ -514,6 +515,20 @@ function toast(msg, ms = 900) {
   toastTimer = setTimeout(() => el.classList.remove('show'), ms);
 }
 
+const BOARD_LABEL = { black: 'Tableau noir', white: 'Tableau blanc' };
+
+/** Fond opaque noir ou blanc pour dessiner sur une page vierge ; même touche = retour à l'écran. */
+function setBoard(board) {
+  state.board = state.board === board ? null : board;
+  document.body.dataset.board = state.board ?? '';
+  // Une encre invisible sur ce fond passe à la couleur opposée.
+  if (state.board === 'white' && state.color === PALETTE.w) state.color = PALETTE.k;
+  if (state.board === 'black' && state.color === PALETTE.k) state.color = PALETTE.w;
+  toast(state.board ? BOARD_LABEL[state.board] : 'Écran visible');
+  updateHud();
+  requestRender();
+}
+
 function setTool(tool) {
   state.tool = tool;
   toast(TOOL_LABEL[tool]);
@@ -531,7 +546,10 @@ function setDrawMode(on, keepVisible = false) {
     state.hideRequested = false;
     window.focus();
     updateHud();
-    if (update && !update.announced) {
+    if (updatedTo) {
+      toast(`NeonInk est à jour : version ${updatedTo}`, 3000);
+      updatedTo = null;
+    } else if (update && !update.announced) {
       update.announced = true;
       toast(`Mise à jour ${update.version} disponible (menu de l'icône NeonInk)`, 3500);
     }
@@ -566,6 +584,10 @@ function onKey(e) {
     if (k === 'z') undo();
     return;
   }
+  if (e.shiftKey && (k === 'k' || k === 'w')) {
+    setBoard(k === 'k' ? 'black' : 'white');
+    return;
+  }
   if (PALETTE[k]) {
     state.color = PALETTE[k];
     if (state.tool === 'eraser' || state.tool === 'cutter') state.tool = 'pen';
@@ -579,6 +601,7 @@ function onKey(e) {
       if ($('help').classList.contains('show')) $('help').classList.remove('show');
       else {
         clearAll();
+        if (state.board) setBoard(state.board);
         exitDrawMode();
       }
       break;
@@ -693,10 +716,14 @@ window.addEventListener('resize', resize);
 // ───────────────────────── Mises à jour ─────────────────────────
 
 let update = null;
+let updatedTo = null;
+let appVersion = null;
+let updatesEnabled = true;
 
 async function lookForUpdate(manual) {
+  if (!updatesEnabled) return;
   try {
-    update = await checkUpdate(await tauri.app.getVersion());
+    update = await checkUpdate(appVersion);
     if (update) invoke('update_available', { update });
     else if (manual) invoke('update_status', { text: 'NeonInk est à jour' });
   } catch (err) {
@@ -709,8 +736,19 @@ if (tauri) {
   tauri.event.listen('draw-mode', (e) => setDrawMode(!!e.payload.on, e.payload.keepVisible));
   tauri.event.listen('clear-all', () => clearAll());
   tauri.event.listen('check-update', () => lookForUpdate(true));
-  setTimeout(() => lookForUpdate(false), 8000);
-  setInterval(() => lookForUpdate(false), 6 * 3600 * 1000);
+  (async () => {
+    appVersion = await tauri.app.getVersion();
+    updatesEnabled = (await invoke('update_config'))?.enabled ?? true;
+    // Après une mise à jour, on l'annonce au prochain passage en dessin.
+    try {
+      const previous = localStorage.getItem('version');
+      if (previous && previous !== appVersion) updatedTo = appVersion;
+      localStorage.setItem('version', appVersion);
+    } catch {}
+    // Recherche peu après le démarrage, puis toutes les 2 heures.
+    setTimeout(() => lookForUpdate(false), 15000);
+    setInterval(() => lookForUpdate(false), 2 * 3600 * 1000);
+  })();
 } else {
   document.body.classList.add('browser');
 }

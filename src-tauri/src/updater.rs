@@ -1,16 +1,21 @@
 //! Mise à jour depuis les Releases GitHub.
 //!
-//! L'interface consulte GitHub et signale ici la nouvelle version ; l'entrée du menu de
-//! l'icône propose alors de l'installer. Version installée (présence de `uninstall.exe`) :
-//! on télécharge et lance l'installateur. Version portable : on remplace l'exécutable
-//! lui-même, puis on relance. En cas d'échec, la page de la release s'ouvre dans le navigateur.
+//! L'interface consulte GitHub au démarrage puis régulièrement, et signale ici la nouvelle
+//! version. Avec les mises à jour automatiques (par défaut), elle est installée dès que
+//! NeonInk est inactif : ni dessin en cours, ni tracé gardé en mémoire. Sinon l'entrée du
+//! menu de l'icône propose de l'installer.
+//!
+//! Version installée (présence de `uninstall.exe`) : l'installateur est lancé en mode
+//! passif (`/P`, sans question) et relance NeonInk ensuite (`/R`). Windows demande les droits
+//! administrateur, l'application étant installée dans Program Files.
+//! Version portable : l'exécutable se remplace lui-même puis redémarre.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tauri::{menu::MenuItem, AppHandle, Emitter, Manager, State, Wry};
 
 pub const CHECK_LABEL: &str = "Rechercher une mise à jour";
@@ -28,12 +33,21 @@ pub struct Update {
 pub struct Updates {
     item: MenuItem<Wry>,
     pending: Mutex<Option<Update>>,
+    /// Version dont l'installation automatique a échoué ou a été refusée : on ne la relance pas seul.
+    declined: Mutex<Option<String>>,
     busy: AtomicBool,
+    auto: AtomicBool,
 }
 
 impl Updates {
-    pub fn new(item: MenuItem<Wry>) -> Self {
-        Self { item, pending: Mutex::new(None), busy: AtomicBool::new(false) }
+    pub fn new(item: MenuItem<Wry>, auto: bool) -> Self {
+        Self {
+            item,
+            pending: Mutex::new(None),
+            declined: Mutex::new(None),
+            busy: AtomicBool::new(false),
+            auto: AtomicBool::new(auto),
+        }
     }
 
     fn label(&self, text: &str) {
@@ -41,13 +55,25 @@ impl Updates {
     }
 }
 
+#[derive(Serialize)]
+pub struct UpdateConfig {
+    /// `NEONINK_NO_UPDATE` désactive toute recherche (tests automatisés).
+    enabled: bool,
+}
+
 #[tauri::command]
-pub fn update_available(state: State<Updates>, update: Update) {
+pub fn update_config() -> UpdateConfig {
+    UpdateConfig { enabled: std::env::var_os("NEONINK_NO_UPDATE").is_none() }
+}
+
+#[tauri::command]
+pub fn update_available(app: AppHandle, state: State<Updates>, update: Update) {
     if state.busy.load(Ordering::SeqCst) {
         return;
     }
     state.label(&format!("Installer la version {}", update.version));
     *state.pending.lock().unwrap() = Some(update);
+    install_if_idle(&app);
 }
 
 #[tauri::command]
@@ -57,32 +83,59 @@ pub fn update_status(state: State<Updates>, text: String) {
     }
 }
 
+pub fn set_auto(app: &AppHandle, on: bool) {
+    app.state::<Updates>().auto.store(on, Ordering::SeqCst);
+    if on {
+        install_if_idle(app);
+    }
+}
+
+/// Installe la mise à jour en attente si les mises à jour automatiques sont actives
+/// et que NeonInk ne sert pas en ce moment.
+pub fn install_if_idle(app: &AppHandle) {
+    let state = app.state::<Updates>();
+    if !state.auto.load(Ordering::SeqCst) || !crate::is_idle() {
+        return;
+    }
+    let Some(update) = state.pending.lock().unwrap().clone() else { return };
+    if state.declined.lock().unwrap().as_deref() == Some(update.version.as_str()) {
+        return;
+    }
+    start(app, update, false);
+}
+
 pub fn on_menu_click(app: &AppHandle) {
+    let pending = app.state::<Updates>().pending.lock().unwrap().clone();
+    match pending {
+        Some(update) => start(app, update, true),
+        None => {
+            app.state::<Updates>().label("Recherche en cours…");
+            let _ = app.emit("check-update", ());
+        }
+    }
+}
+
+fn start(app: &AppHandle, update: Update, manual: bool) {
     let state = app.state::<Updates>();
     if state.busy.swap(true, Ordering::SeqCst) {
         return;
     }
-    let pending = state.pending.lock().unwrap().clone();
-    match pending {
-        Some(update) => {
-            state.label(&format!("Téléchargement de la version {}…", update.version));
-            let app = app.clone();
-            std::thread::spawn(move || {
-                if let Err(err) = install(&app, &update) {
-                    eprintln!("mise à jour impossible : {err}");
-                    open_in_browser(&update.page);
-                    let state = app.state::<Updates>();
-                    state.label(&format!("Installer la version {}", update.version));
-                    state.busy.store(false, Ordering::SeqCst);
-                }
-            });
-        }
-        None => {
-            state.label("Recherche en cours…");
+    state.label(&format!("Téléchargement de la version {}…", update.version));
+    let app = app.clone();
+    std::thread::spawn(move || {
+        if let Err(err) = install(&app, &update) {
+            eprintln!("mise à jour impossible : {err}");
+            // Demandée depuis le menu : on ouvre la page de téléchargement. Automatique : on
+            // n'insiste pas, l'entrée du menu reste disponible.
+            if manual {
+                open_in_browser(&update.page);
+            }
+            let state = app.state::<Updates>();
+            *state.declined.lock().unwrap() = Some(update.version.clone());
+            state.label(&format!("Installer la version {}", update.version));
             state.busy.store(false, Ordering::SeqCst);
-            let _ = app.emit("check-update", ());
         }
-    }
+    });
 }
 
 fn install(app: &AppHandle, update: &Update) -> Result<(), String> {
@@ -93,7 +146,8 @@ fn install(app: &AppHandle, update: &Update) -> Result<(), String> {
         let url = update.setup.as_deref().ok_or("pas d'installateur dans la release")?;
         let setup = std::env::temp_dir().join(format!("NeonInk_{}_setup.exe", update.version));
         download(url, &setup)?;
-        Command::new(&setup).spawn().map_err(|e| e.to_string())?;
+        // /P : installation passive, sans question. /R : relancer NeonInk à la fin.
+        run_elevated(&setup, "/P /R")?;
     } else {
         let url = update.portable.as_deref().ok_or("pas d'exécutable portable dans la release")?;
         let fresh = exe.with_extension("new");
@@ -124,13 +178,16 @@ pub fn cleanup_previous_version() {
 }
 
 #[cfg(windows)]
-fn download(url: &str, to: &Path) -> Result<(), String> {
+fn wide(s: &std::ffi::OsStr) -> Vec<u16> {
     use std::os::windows::ffi::OsStrExt;
+    s.encode_wide().chain(Some(0)).collect()
+}
+
+#[cfg(windows)]
+fn download(url: &str, to: &Path) -> Result<(), String> {
     use windows_sys::Win32::System::Com::Urlmon::URLDownloadToFileW;
 
-    let wide = |s: &std::ffi::OsStr| s.encode_wide().chain(Some(0)).collect::<Vec<u16>>();
-    let url_w = wide(std::ffi::OsStr::new(url));
-    let to_w = wide(to.as_os_str());
+    let (url_w, to_w) = (wide(std::ffi::OsStr::new(url)), wide(to.as_os_str()));
     let hr = unsafe {
         URLDownloadToFileW(std::ptr::null_mut(), url_w.as_ptr(), to_w.as_ptr(), 0, std::ptr::null_mut())
     };
@@ -142,8 +199,30 @@ fn download(url: &str, to: &Path) -> Result<(), String> {
     }
 }
 
+/// Lance un programme qui exige les droits administrateur : Windows affiche sa demande
+/// d'autorisation. `Command::spawn` échouerait (ERROR_ELEVATION_REQUIRED).
+#[cfg(windows)]
+fn run_elevated(program: &Path, args: &str) -> Result<(), String> {
+    use windows_sys::Win32::UI::Shell::ShellExecuteW;
+    use windows_sys::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+
+    let verb = wide(std::ffi::OsStr::new("open"));
+    let file = wide(program.as_os_str());
+    let params = wide(std::ffi::OsStr::new(args));
+    let code = unsafe {
+        ShellExecuteW(std::ptr::null_mut(), verb.as_ptr(), file.as_ptr(), params.as_ptr(), std::ptr::null(), SW_SHOWNORMAL)
+    } as isize;
+    // Une valeur supérieure à 32 signale un succès ; sinon l'utilisateur a refusé ou le lancement a échoué.
+    if code > 32 { Ok(()) } else { Err(format!("installateur non lancé (code {code})")) }
+}
+
 #[cfg(not(windows))]
 fn download(_url: &str, _to: &Path) -> Result<(), String> {
+    Err("mise à jour automatique disponible sous Windows uniquement".into())
+}
+
+#[cfg(not(windows))]
+fn run_elevated(_program: &Path, _args: &str) -> Result<(), String> {
     Err("mise à jour automatique disponible sous Windows uniquement".into())
 }
 

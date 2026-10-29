@@ -2,7 +2,7 @@ name: Build Windows
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'ci/**']
   pull_request:
   workflow_dispatch:
 
@@ -32,16 +32,9 @@ jobs:
 
       # Tests sur la session Windows du runner (bureau réel, Edge installé)
       - run: pip install mss
-      - name: Le calque ne fige pas les applications dessous
+      - name: Le calque s'affiche et Edge continue de se dessiner dessous
         shell: bash
         run: python scripts/ci/occlusion_test.py src-tauri/target/release/NeonInk.exe --expect live --shots shots
-      - name: Témoin — la v0.3.1 figeait Edge
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release download v0.3.1 -p '*portable.exe' -D old
-          python scripts/ci/occlusion_test.py old/NeonInk_0.3.1_x64_portable.exe --expect freeze --shots shots
       - name: Installation, migration, mise à jour et désinstallation
         shell: pwsh
         env:

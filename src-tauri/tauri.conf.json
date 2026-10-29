@@ -1,6 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "NeonInk",
+  "mainBinaryName": "NeonInk",
   "version": "../package.json",
   "identifier": "com.patrice.neonink",
   "build": {
@@ -31,7 +32,10 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis", "msi"],
+    "targets": [
+      "nsis",
+      "msi"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -40,7 +44,27 @@
       "icons/icon.ico"
     ],
     "windows": {
-      "webviewInstallMode": { "type": "downloadBootstrapper" }
-    }
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      },
+      "nsis": {
+        "installMode": "perMachine",
+        "languages": [
+          "French"
+        ],
+        "displayLanguageSelector": false,
+        "installerIcon": "icons/icon.ico",
+        "installerHooks": "windows/hooks.nsh"
+      },
+      "wix": {
+        "language": "fr-FR"
+      }
+    },
+    "publisher": "Patrice Maldi",
+    "copyright": "© 2026 Patrice Maldi",
+    "category": "Productivity",
+    "shortDescription": "Dessin néon à l'écran",
+    "longDescription": "Dessinez, annotez et numérotez des étapes par-dessus n'importe quelle application, avec un rendu néon. F10 active le dessin.",
+    "homepage": "https://github.com/pmaldi/neon-ink"
   }
 }
