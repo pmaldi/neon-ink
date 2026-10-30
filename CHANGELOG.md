@@ -7,6 +7,8 @@ et le projet respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-30
+
 ### Ajouté
 - Roue de sélection : maintenir la touche, viser, relâcher (ou appuyer puis cliquer). Plugin Réseau 1.1.0 : **J** ouvre la roue des appareils (routeur, switch, serveur, PC, pare-feu, Internet, Wi-Fi). Les plugins peuvent l'utiliser (`api.wheel`).
 - Boutons de la souris dans les raccourcis : clic molette et boutons latéraux 4 et 5, seuls ou avec Ctrl, Alt, Maj. Dans l'aide, clic sur une touche puis sur le bouton voulu. Le raccourci global (F10) reste au clavier.
@@ -130,7 +132,8 @@ et le projet respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 - Étapes numérotées reliées par des flèches (touche **S**, nouvelle séquence avec **N**).
 - Aide à l'écran (touche **H**) et prise en charge de plusieurs écrans.
 
-[Unreleased]: https://github.com/pmaldi/neon-ink/compare/v0.9.1...HEAD
+[Unreleased]: https://github.com/pmaldi/neon-ink/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/pmaldi/neon-ink/compare/v0.9.1...v0.10.0
 [0.9.1]: https://github.com/pmaldi/neon-ink/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/pmaldi/neon-ink/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/pmaldi/neon-ink/compare/v0.7.0...v0.8.0
