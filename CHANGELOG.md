@@ -7,6 +7,8 @@ et le projet respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-10-30
+
 ### Ajouté
 - Huit nouveaux plugins, à installer depuis l'aide (onglet Plugins) : **Isométrique** (Maj+I), **Organigramme** (Q), **UML et bases de données** (Maj+Q), **Cloud** (U), **Annotations** (Z), **Présentation** (A : spot, loupe, laser, rideau), **Minuteur** (Maj+T) et **Géométrie** (Maj+R).
 - **Réseau 2.0** : étiquettes et adresses IP sur les appareils et les liens (Maj+clic), zones nommées (Ctrl+J), types de câble cuivre, fibre, VPN et sans fil (Alt+J).
@@ -147,7 +149,8 @@ et le projet respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 - Étapes numérotées reliées par des flèches (touche **S**, nouvelle séquence avec **N**).
 - Aide à l'écran (touche **H**) et prise en charge de plusieurs écrans.
 
-[Unreleased]: https://github.com/pmaldi/neon-ink/compare/v0.10.2...HEAD
+[Unreleased]: https://github.com/pmaldi/neon-ink/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/pmaldi/neon-ink/compare/v0.10.2...v0.11.0
 [0.10.2]: https://github.com/pmaldi/neon-ink/compare/v0.10.1...v0.10.2
 [0.10.1]: https://github.com/pmaldi/neon-ink/compare/v0.10.0...v0.10.1
 [0.10.0]: https://github.com/pmaldi/neon-ink/compare/v0.9.1...v0.10.0
