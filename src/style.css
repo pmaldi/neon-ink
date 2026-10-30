@@ -52,16 +52,17 @@ canvas {
 body.drawing #heartbeat { display: block; animation: heartbeat 1s linear infinite alternate; }
 @keyframes heartbeat { to { transform: translateX(1px); } }
 
-/* Tableau noir ou blanc : fond opaque pour dessiner sur une page vierge (Maj+K, Maj+W) */
+/* Fond opaque (tableau, papier quadrillé) pour dessiner sur une page vierge, peint par boards.js */
 #board {
   position: fixed;
   inset: 0;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 260ms ease, background-color 260ms ease;
+  transition: opacity 260ms ease;
 }
-body[data-board="black"] #board { opacity: 1; background: #050608; }
-body[data-board="white"] #board { opacity: 1; background: #f7f7f4; }
+body.board #board { opacity: 1; }
 body.drawing #fx { cursor: none; }
 
 /* Liseré lumineux autour de l'écran pendant le mode dessin */
@@ -172,6 +173,10 @@ body.drawing #hud { opacity: 1; transform: none; }
 .help-panel {
   position: relative;
   width: min(900px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--c) 50%, transparent) transparent;
   padding: 26px 30px 18px;
   border-radius: 18px;
   color: var(--text);
@@ -269,6 +274,30 @@ dt:hover .key.add, .key.add:focus-visible { opacity: 1; }
 }
 #help.show .colors dd::before { animation: pulse 1.8s ease-in-out infinite; animation-delay: calc(var(--i, 0) * -170ms); }
 @keyframes pulse { 50% { box-shadow: 0 0 2px var(--k); transform: scale(0.8); } }
+
+.help-plugins { margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.08); }
+.help-plugins h2 { margin: 0 0 8px; }
+.help-plugins .plugin {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 6px 0;
+  font-size: 12.5px;
+}
+.help-plugins .plugin b { color: #fff; }
+.help-plugins .plugin .muted, .help-plugins > .muted { color: var(--muted); font-size: 12px; }
+.help-plugins .plugin button {
+  font: inherit;
+  color: var(--text);
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--c) 60%, transparent);
+  background: rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+}
+.help-plugins .plugin button:hover { box-shadow: 0 0 10px color-mix(in srgb, var(--c) 50%, transparent); }
+.help-plugins .plugin button:disabled { opacity: 0.5; cursor: progress; }
 
 .help-status { min-height: 18px; margin: 14px 0 0; font-size: 12.5px; text-align: center; color: #fff; text-shadow: 0 0 10px var(--c); }
 .help-foot {

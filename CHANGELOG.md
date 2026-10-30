@@ -7,6 +7,15 @@ et le projet respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Ajouté
+- Papier petits carreaux (**Maj+P**) et grands carreaux Seyès (**Maj+G**), aussi dans les captures. Les formes s'aimantent au quadrillage.
+- Plugins : des fonctionnalités en plus, installées depuis l'aide (section Plugins) et absentes des installateurs. Ils se chargent au démarrage, ajoutent leurs touches à l'aide et se mettent à jour tout seuls.
+- Plugin **Réseau** : plans réseau animés (routeur, switch, serveur, PC, pare-feu, Internet, borne Wi-Fi), reliés d'un glisser par des liens où circulent des paquets. Touche **J**.
+
+### Modifié
+- L'aide défile quand elle dépasse la hauteur de l'écran.
+- Menu de l'icône : « Aide, raccourcis et plugins… ».
+
 ## [0.8.0] - 2026-10-30
 
 ### Modifié

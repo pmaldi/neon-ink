@@ -55,9 +55,12 @@ jobs:
           exe=src-tauri/target/release/NeonInk.exe
           [ -f "$exe" ] || exe=src-tauri/target/release/neon-ink.exe
           cp "$exe" "$portable"
+          # Plugins : téléchargés à la demande depuis l'application, absents des installateurs.
+          node scripts/build-plugins.js "$version" dist-plugins
           gh release create "$GITHUB_REF_NAME" \
             --title "NeonInk $version" \
             --notes-file notes.md \
             src-tauri/target/release/bundle/nsis/*.exe \
             src-tauri/target/release/bundle/msi/*.msi \
-            "$portable"
+            "$portable" \
+            dist-plugins/*

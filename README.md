@@ -14,7 +14,8 @@ Appuyez sur **F10**, dessinez, puis **F10** à nouveau : les tracés sont masqu�
 - Étapes numérotées : chaque clic pose une pastille ①, ②, ③… reliée à la précédente par une flèche courbe. Glisser dessine un trait ou une forme sans quitter le mode. Effacer une étape renumérote les suivantes
 - Plusieurs écrans : le calque s'ouvre sur l'écran où se trouve la souris
 - Léger : aucune image n'est calculée quand rien ne bouge, et la fenêtre est masquée hors du mode dessin
-- Tableau noir ou blanc : un fond opaque pour dessiner sur une page vierge
+- Tableau noir ou blanc, papier petits carreaux ou grands carreaux (Seyès) : un fond opaque pour dessiner sur une page vierge, avec les formes aimantées au quadrillage
+- Plugins à installer depuis l'aide, sans alourdir l'application : par exemple **Réseau**, pour des plans réseau animés (routeur, switch, serveur, PC, pare-feu, Internet, Wi-Fi)
 - Mises à jour automatiques : la nouvelle version s'installe d'elle-même quand NeonInk ne sert pas
 - Raccourcis personnalisables dans un fichier de configuration, rechargé à chaud
 
@@ -39,6 +40,7 @@ Appuyez sur **F10**, dessinez, puis **F10** à nouveau : les tracés sont masqu�
 | **Suppr** / **X** | Tout effacer (animé) |
 | **Molette** / **+ −** | Épaisseur du trait |
 | **Maj+K** / **Maj+W** | Tableau noir / tableau blanc (même touche : retour à l'écran) |
+| **Maj+P** / **Maj+G** | Papier petits carreaux / grands carreaux Seyès (même touche : retour à l'écran) |
 | **Ctrl+S** | Capture d'écran avec les dessins (Images › NeonInk, copiée aussi dans le presse-papiers) |
 | **Ctrl+Maj+S** | Ouvrir le dossier des captures |
 | **H** | Aide à l'écran |
@@ -138,6 +140,14 @@ Les builds de contrôle (`build.yml`) utilisent une optimisation plus légère p
 
 Le script met à jour les numéros de version et le CHANGELOG, puis crée le commit et le tag. Il accepte `patch`, `minor`, `major` ou un numéro précis.
 Le push du tag lance le workflow « Release », qui compile l'application et publie les installateurs et l'exécutable portable dans les [Releases GitHub](https://github.com/pmaldi/neon-ink/releases) avec les notes du CHANGELOG.
+
+## Plugins
+
+Des fonctionnalités en plus, absentes des installateurs : chacune se télécharge depuis l'aide (**H**), section **Plugins**, bouton **Installer**. Un plugin installé se charge à chaque démarrage, ajoute ses touches à l'aide et se met à jour tout seul ; **Retirer** le désactive aussitôt.
+
+**Réseau** : plans réseau en néon. **J** choisit l'outil, puis encore **J** l'appareil suivant (routeur, switch, serveur, PC, pare-feu, Internet, borne Wi-Fi). Un clic pose l'appareil, nommé automatiquement (R1, SW1, PC2…). Glisser d'un appareil à un autre les relie ; glisser vers le vide pose un nouvel appareil déjà relié. Des paquets circulent sur les liens, les voyants clignotent ; **Maj+J** met les animations en pause. Sur papier à carreaux, les appareils s'alignent sur le quadrillage.
+
+Pour écrire un plugin : [plugins/README.md](plugins/README.md).
 
 ## Mises à jour
 

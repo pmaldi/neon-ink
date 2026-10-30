@@ -3,6 +3,7 @@
 
 mod capture;
 mod config;
+mod plugins;
 mod settings;
 mod system_update;
 mod updater;
@@ -222,6 +223,10 @@ fn main() {
             capture::open_captures,
             config::get_config,
             config::open_link,
+            plugins::plugin_list,
+            plugins::plugin_catalog,
+            plugins::plugin_install,
+            plugins::plugin_remove,
             config::save_shortcuts,
             config::reset_shortcuts,
             config::capture_shortcut,
@@ -267,7 +272,7 @@ fn main() {
                 settings.auto_update,
                 None::<&str>,
             )?;
-            let shortcuts = MenuItem::with_id(app, "shortcuts", "Raccourcis clavier…", true, None::<&str>)?;
+            let shortcuts = MenuItem::with_id(app, "shortcuts", "Aide, raccourcis et plugins…", true, None::<&str>)?;
             let launch_at_login = CheckMenuItem::with_id(
                 app,
                 "autostart",

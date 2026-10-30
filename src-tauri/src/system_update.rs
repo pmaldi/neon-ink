@@ -163,7 +163,7 @@ fn run() -> Result<(), String> {
     result.map(|_| ())
 }
 
-fn curl(args: &[&str]) -> Result<Vec<u8>, String> {
+pub fn curl(args: &[&str]) -> Result<Vec<u8>, String> {
     let out = hidden(system32("curl.exe"))
         .args(["-fsSL", "--retry", "2", "--max-time", "300", "-A", "NeonInk-updater"])
         .args(args)

@@ -37,6 +37,8 @@
     "formesAuto": "F",
     "tableauNoir": "Shift+K",
     "tableauBlanc": "Shift+W",
+    "petitsCarreaux": "Shift+P",
+    "grandsCarreaux": "Shift+G",
     "couleurRouge": "R",
     "couleurVert": "G",
     "couleurBleu": "B",

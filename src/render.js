@@ -237,3 +237,18 @@ export function arrow(ctx, a, c, b, color, width, progress = 1, alpha = 1) {
   }
   neon(ctx, path, color, width, alpha);
 }
+
+/** Étiquette lumineuse centrée sur (x, y) : noms des appareils d'un plan réseau, etc. */
+export function neonLabel(ctx, text, x, y, color, { size = 13, alpha = 1, weight = 600 } = {}) {
+  if (alpha <= 0 || !text) return;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.font = `${weight} ${size}px "Segoe UI", system-ui, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = color.glow;
+  ctx.shadowBlur = size * 0.7;
+  ctx.fillStyle = color.hex === PALETTE.k.hex ? color.hex : mix(color.hex, '#ffffff', 0.35);
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}

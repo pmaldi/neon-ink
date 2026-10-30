@@ -83,15 +83,38 @@ def drag(a, b, steps=20):
     time.sleep(1.2)  # fin de l'animation du tracé
 
 
+def install_test_plugin():
+    """Range le plugin Réseau du dépôt comme s'il avait été téléchargé depuis l'aide."""
+    import json
+    import shutil
+
+    folder = os.path.join(os.environ["APPDATA"], "com.patrice.neonink", "plugins")
+    os.makedirs(folder, exist_ok=True)
+    shutil.copy(os.path.join("plugins", "reseau", "plugin.js"), os.path.join(folder, "reseau.js"))
+    with open(os.path.join(folder, "reseau.json"), "w", encoding="utf-8") as f:
+        json.dump({"id": "reseau", "nom": "Réseau", "version": "1.0.0", "api": 1}, f)
+
+
+def click(x, y):
+    user32.SetCursorPos(x, y)
+    time.sleep(0.1)
+    user32.mouse_event(0x0002, 0, 0, 0, 0)
+    time.sleep(0.05)
+    user32.mouse_event(0x0004, 0, 0, 0, 0)
+    time.sleep(1.2)
+
+
 def check_capture(shown):
-    """Outil Formes, un rectangle, Ctrl+S : la capture doit montrer la page de test sous le rectangle,
-    sans la barre d'état du calque."""
+    """Outil Formes, un rectangle, puis un routeur du plugin Réseau, Ctrl+S : la capture doit montrer
+    la page de test dessous, les deux dessins, et pas la barre d'état du calque."""
     from PIL import Image
 
     folder = os.path.join(os.environ["USERPROFILE"], "Pictures", "NeonInk")
     started = time.time()
     tap(0x4D)  # M : outil Formes (rectangle)
     drag((200, 300), (520, 520))
+    tap(0x4A)  # J : outil Réseau (plugin)
+    click(800, 420)
     tap(0x11, 0x53)  # Ctrl+S
     found = None
     for _ in range(20):
@@ -114,6 +137,9 @@ def check_capture(shown):
         "page visible sous le calque": near(corner, page),
         "barre d'état absente": near(hud, page),
         "rectangle dessiné": edge[2] > 150 and not near(edge, page, 40),
+        "routeur du plugin Réseau dessiné": sum(
+            1 for x in range(750, 851, 2) for y in range(370, 471, 2) if img.getpixel((x, y))[2] > 170
+        ) > 40,
     }
     lines = [f"- Capture `{os.path.basename(found)}` {w}×{h} : coin {corner}, haut {hud}, bord du rectangle {edge}"]
     lines += [f"  - {name} : {'ok' if ok else '**ÉCHEC**'}" for name, ok in checks.items()]
@@ -204,6 +230,7 @@ def main():
         time.sleep(2)
         before = rate()
 
+        install_test_plugin()
         env = dict(os.environ, NEONINK_NO_UPDATE="1")
         app = subprocess.Popen([args.exe], env=env)
         time.sleep(6)

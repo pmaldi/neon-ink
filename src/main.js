@@ -1,8 +1,10 @@
 import { recognize, smoothFree } from './shapes.js';
 import { STAMPS, stamp, stampAt } from './stamps.js';
-import { PALETTE, buildPath, neon, glowLine, glowDot, badge, arrow, neonText, layoutText, textFont, TEXT_LINE_HEIGHT } from './render.js';
-import { checkUpdate } from './update.js';
-import { buildKeymap, eventCombo, prettyCombo } from './keys.js';
+import { BOARDS, paintBoard, snapToGrid } from './boards.js';
+import { PALETTE, buildPath, neon, glowLine, glowDot, badge, arrow, neonText, neonLabel, layoutText, textFont, TEXT_LINE_HEIGHT } from './render.js';
+import { createPluginHost } from './plugins.js';
+import { checkUpdate, compareVersions } from './update.js';
+import { buildKeymap, eventCombo, parseCombo, prettyCombo } from './keys.js';
 import { playEgg, eggOpen, closeEgg } from './egg.js';
 import { dist, lerp, clamp, cumulative, subPath, pointAt, resample, polygonArea, polyDist } from './geom.js';
 
@@ -17,7 +19,7 @@ const tauri = window.__TAURI__;
 const invoke = (cmd, args) => tauri?.core.invoke(cmd, args).catch(console.error);
 
 const $ = (id) => document.getElementById(id);
-const staticCv = $('static'), fxCv = $('fx');
+const staticCv = $('static'), fxCv = $('fx'), boardCv = $('board');
 const sctx = staticCv.getContext('2d'), fctx = fxCv.getContext('2d');
 
 const state = {
@@ -35,7 +37,7 @@ const state = {
   erasing: false,
   lastErase: null,
   pending: null, // clic en mode étapes : pastille, ou trait si la souris glisse
-  board: null, // null (écran visible) | 'black' | 'white'
+  board: null, // null (écran visible) ou une clé de BOARDS
   pointer: null,
   particles: [],
   seq: 1,
@@ -44,6 +46,29 @@ const state = {
   hideRequested: false,
 };
 let nextId = 1;
+
+// Fonctionnalités en plus, téléchargées à la demande (voir plugins.js et plugins/README.md).
+const plugins = createPluginHost({
+  state,
+  palette: PALETTE,
+  draw: { neon, glowLine, glowDot, badge, label: neonLabel, path: buildPath },
+  setTool: (tool) => setTool(tool),
+  add(o) {
+    const obj = { id: nextId++, color: state.color, width: state.width, born: performance.now(), ...o };
+    state.objects.push(obj);
+    requestRender();
+    return obj;
+  },
+  remove(o) {
+    kill(o);
+    requestRender();
+  },
+  objects: () => state.objects.filter((o) => !o.dying),
+  snap: (p) => snapToGrid(state.board, p),
+  toast: (msg, ms) => toast(msg, ms),
+  render: () => requestRender(),
+  refreshHud: () => updateHud(),
+});
 let dpr = 1;
 let raf = 0;
 let lastFrame = performance.now();
@@ -57,10 +82,11 @@ const eraserRadius = (fine = false) => (fine ? 7 + state.width : 14 + state.widt
 
 function resize() {
   dpr = window.devicePixelRatio || 1;
-  for (const cv of [staticCv, fxCv]) {
+  for (const cv of [staticCv, fxCv, boardCv]) {
     cv.width = Math.round(innerWidth * dpr);
     cv.height = Math.round(innerHeight * dpr);
   }
+  paintBoard(boardCv.getContext('2d'), state.board, boardCv.width, boardCv.height, dpr);
   state.staticDirty = true;
   requestRender();
 }
@@ -87,6 +113,7 @@ function geometry(o) {
 
 function isSettled(o, now) {
   if (o.dying) return false;
+  if (o.kind === 'plugin') return !plugins.animated(o) && now - o.born >= T.IN;
   if (o.kind === 'step') return now - o.born >= T.STEP_IN && now - (o.renumbered ?? -1e9) >= T.RENUMBER;
   return now - o.born >= T.IN;
 }
@@ -179,9 +206,20 @@ function drawStepBadge(ctx, o, now) {
   badge(ctx, o.x, o.y, STEP_R, o.n, o.color, { scale, alpha, ring: easeOutCubic(clamp(age / 400, 0, 1)) });
 }
 
+/** Objet ajouté par un plugin : il le dessine lui-même, NeonInk gère l'apparition et l'effacement. */
+function drawPlugin(ctx, o, now) {
+  const life = o.dying ? 1 - clamp((now - o.dying) / T.OUT, 0, 1) : 1;
+  if (life <= 0) return;
+  ctx.save();
+  plugins.draw(ctx, o, { now, age: now - o.born, intro: clamp((now - o.born) / T.IN, 0, 1), life });
+  ctx.restore();
+}
+
 function drawObjects(ctx, list, now) {
   for (const o of list) if (o.kind === 'text') drawText(ctx, o, now);
-    else if (o.kind !== 'step') drawStroke(ctx, o, now);
+    else if (o.kind !== 'step' && o.kind !== 'plugin') drawStroke(ctx, o, now);
+  const extra = list.filter((o) => o.kind === 'plugin').sort((a, b) => plugins.layer(a) - plugins.layer(b));
+  for (const o of extra) drawPlugin(ctx, o, now);
   for (const o of list) if (o.kind === 'step') drawStepArrow(ctx, o, now);
   for (const o of list) if (o.kind === 'step') drawStepBadge(ctx, o, now);
 }
@@ -201,6 +239,8 @@ function kill(o, delay = 0) {
   if (o.dying) return;
   o.dying = performance.now() + delay;
   if (o.kind === 'step') renumber(o.seq);
+  // Ce qui dépend de l'objet disparaît avec lui (les liens d'un appareil réseau, par exemple).
+  for (const q of state.objects) if (q.deps?.includes(o.id)) kill(q, delay);
 }
 
 /** Les étapes restantes d'une séquence sont renumérotées 1, 2, 3… sans trou. */
@@ -238,7 +278,10 @@ function updateEffects(now, dt) {
     if (!o.burst) {
       o.burst = true;
       if (o.kind === 'step') for (let i = 0; i < 22; i++) spark(o.x, o.y, o.color, 160);
-      else if (o.kind === 'text') {
+      else if (o.kind === 'plugin') {
+        const c = plugins.center(o);
+        if (c) for (let i = 0; i < 18; i++) spark(c.x, c.y, o.color, 130);
+      } else if (o.kind === 'text') {
         const b = o.box ?? { x: o.x, y: o.y, w: 0, h: 0 };
         for (let i = 0; i < 26; i++) spark(b.x + Math.random() * b.w, b.y + Math.random() * b.h, o.color, 90);
       } else {
@@ -299,11 +342,12 @@ function frame() {
   drawObjects(fctx, state.objects.filter((o) => !o.inStatic), now);
   if (state.active) drawActive(now);
   if (state.placing) drawPlacing();
+  pluginTool()?.preview?.(fctx, now);
   if (state.editing) drawEditing(now);
   drawParticles(fctx);
   drawCursor();
 
-  const busy = state.active || state.placing || state.editing || state.particles.length || state.objects.some((o) => !o.inStatic);
+  const busy = state.active || state.placing || pluginTool()?.busy?.() || state.editing || state.particles.length || state.objects.some((o) => !o.inStatic);
   if (busy) requestRender();
   else maybeHide();
 }
@@ -388,6 +432,10 @@ function drawCursor() {
     ctx.moveTo(p.x - 5, p.y + h / 2);
     ctx.lineTo(p.x + 5, p.y + h / 2);
     ctx.stroke();
+  } else if (pluginTool()) {
+    ctx.restore();
+    pluginTool().cursor?.(ctx, p, performance.now());
+    return;
   } else if (state.tool === 'stamp') {
     if (state.placing) return ctx.restore();
     // Croix de visée et petite vignette de la forme choisie.
@@ -549,6 +597,7 @@ function eraseAt(p) {
     let hit;
     if (o.kind === 'step') hit = dist(o, p) < STEP_R + r;
     else if (o.kind === 'text') hit = textHit(o, p, r);
+    else if (o.kind === 'plugin') hit = plugins.hit(o, p, r);
     else {
       geometry(o);
       hit = polyDist(p, o.pts, o.closed) < r + o.width / 2;
@@ -570,6 +619,10 @@ function cutAt(p) {
     }
     if (o.kind === 'text') {
       if (textHit(o, p, r)) kill(o);
+      continue;
+    }
+    if (o.kind === 'plugin') {
+      if (plugins.hit(o, p, r)) kill(o);
       continue;
     }
     geometry(o);
@@ -643,7 +696,11 @@ function clearAll() {
 // ───────────────────────── Interface ─────────────────────────
 
 const TOOL_LABEL = { pen: '✎ Stylo', eraser: '⌫ Gomme', cutter: '✂ Gomme précise', steps: '① Étapes', text: '⌶ Texte' };
-const toolLabel = () => (state.tool === 'stamp' ? `Formes : ${STAMPS[state.stamp].label}` : TOOL_LABEL[state.tool]);
+const pluginTool = () => plugins.tools.get(state.tool);
+function toolLabel() {
+  if (state.tool === 'stamp') return `Formes : ${STAMPS[state.stamp].label}`;
+  return pluginTool()?.label?.() ?? TOOL_LABEL[state.tool] ?? TOOL_LABEL.pen;
+}
 let toastTimer = 0;
 
 function updateHud() {
@@ -662,21 +719,22 @@ function toast(msg, ms = 900) {
   toastTimer = setTimeout(() => el.classList.remove('show'), ms);
 }
 
-const BOARD_LABEL = { black: 'Tableau noir', white: 'Tableau blanc' };
-
-/** Fond opaque noir ou blanc pour dessiner sur une page vierge ; même touche = retour à l'écran. */
+/** Fond opaque (tableau, papier quadrillé) pour dessiner sur une page vierge ; même touche = retour à l'écran. */
 function setBoard(board) {
   state.board = state.board === board ? null : board;
-  document.body.dataset.board = state.board ?? '';
+  document.body.classList.toggle('board', !!state.board);
+  if (state.board) paintBoard(boardCv.getContext('2d'), state.board, boardCv.width, boardCv.height, dpr);
   // Une encre invisible sur ce fond passe à la couleur opposée.
-  if (state.board === 'white' && state.color === PALETTE.w) state.color = PALETTE.k;
-  if (state.board === 'black' && state.color === PALETTE.k) state.color = PALETTE.w;
-  toast(state.board ? BOARD_LABEL[state.board] : 'Écran visible');
+  const light = BOARDS[state.board]?.light;
+  if (light && state.color === PALETTE.w) state.color = PALETTE.k;
+  if (state.board && !light && state.color === PALETTE.k) state.color = PALETTE.w;
+  toast(state.board ? BOARDS[state.board].label : 'Écran visible');
   updateHud();
   requestRender();
 }
 
 function setTool(tool) {
+  if (tool !== state.tool) pluginTool()?.cancel?.();
   state.tool = tool;
   toast(toolLabel());
   updateHud();
@@ -721,7 +779,6 @@ function exitDrawMode() {
 
 // ───────────────────────── Capture d'écran ─────────────────────────
 
-const BOARD_COLOR = { black: '#050608', white: '#f7f7f4' };
 let capturing = false;
 
 /** Pixels BGRA reçus de Tauri (largeur, hauteur, puis les pixels) → canvas. */
@@ -753,8 +810,7 @@ async function screenshot() {
     cv.height = staticCv.height;
     const ctx = cv.getContext('2d');
     if (state.board) {
-      ctx.fillStyle = BOARD_COLOR[state.board];
-      ctx.fillRect(0, 0, cv.width, cv.height);
+      paintBoard(ctx, state.board, cv.width, cv.height, dpr);
     } else if (tauri) {
       const shot = await tauri.core.invoke('capture_screen');
       ctx.drawImage(screenCanvas(shot), 0, 0, cv.width, cv.height);
@@ -801,8 +857,25 @@ let keymap = buildKeymap({ basculerDessin: 'F10', effacerEtQuitter: 'Escape' });
 let links = [];
 let defaultShortcuts = null; // valeurs d'origine (bouton « Touches d'origine » dans le navigateur)
 
+let lastConfig = null;
+
+/** Raccourcis de la configuration, complétés par les touches par défaut des plugins encore libres. */
+function withPluginKeys(shortcuts) {
+  const taken = buildKeymap(shortcuts).map;
+  const out = { ...shortcuts };
+  for (const [action, def] of plugins.actions) {
+    const combo = def.key && parseCombo(def.key);
+    if (!(action in out) && combo && !taken.has(combo)) {
+      out[action] = def.key;
+      taken.set(combo, action);
+    }
+  }
+  return out;
+}
+
 function applyConfig(config) {
-  keymap = buildKeymap(config.raccourcis);
+  lastConfig = config;
+  keymap = buildKeymap(withPluginKeys(config.raccourcis));
   links = config.liens ?? [];
   renderHelp();
   const errors = [...(config.erreurs ?? []), ...keymap.errors];
@@ -870,6 +943,8 @@ const ACTIONS = {
   dossierCaptures: () => (tauri ? invoke('open_captures') : toast('Dossier des captures : version Windows uniquement')),
   tableauNoir: () => setBoard('black'),
   tableauBlanc: () => setBoard('white'),
+  petitsCarreaux: () => setBoard('small'),
+  grandsCarreaux: () => setBoard('seyes'),
 };
 for (const [action, key] of Object.entries(COLOR_ACTIONS)) ACTIONS[action] = () => setColor(key);
 
@@ -947,6 +1022,7 @@ function onKey(e) {
   }
   if (watchSecret(e)) return;
   if (action && ACTIONS[action]) ACTIONS[action]();
+  else if (action) plugins.actions.get(action)?.run();
 }
 
 // ───────────────────────── Aide ─────────────────────────
@@ -975,12 +1051,18 @@ const HELP_SECTIONS = [
     ['formesAuto', 'Formes auto on/off (Maj en relâchant : main levée)'],
     ['tableauNoir', 'Tableau noir (même touche : retour)'],
     ['tableauBlanc', 'Tableau blanc (même touche : retour)'],
+    ['petitsCarreaux', 'Papier petits carreaux (même touche : retour)'],
+    ['grandsCarreaux', 'Papier grands carreaux, Seyès (même touche : retour)'],
   ]],
   ['Couleurs', Object.entries(COLOR_ACTIONS).map(([action, key]) => [action, PALETTE[key].name, key === 'k' ? '#555566' : PALETTE[key].hex])],
 ];
 
 const keysOf = (action) => (keymap.byAction[action] ?? []).map(prettyCombo).join(' · ') || '—';
-const ACTION_LABEL = Object.fromEntries(HELP_SECTIONS.flatMap(([, entries]) => entries.map(([action, label]) => [action, label.split(' (')[0]])));
+const helpSections = () => [...HELP_SECTIONS, ...plugins.helpSections()];
+function actionLabel(action) {
+  for (const [, entries] of helpSections()) for (const [a, label] of entries) if (a === action) return label.split(' (')[0];
+  return action;
+}
 // Une action qui doit toujours garder au moins une touche.
 const REQUIRED = new Set(['basculerDessin', 'aide']);
 
@@ -998,7 +1080,7 @@ function renderHelp() {
   const cols = $('help-cols');
   cols.replaceChildren();
   let row = 0;
-  for (const [title, entries] of HELP_SECTIONS) {
+  for (const [title, entries] of helpSections()) {
     const section = document.createElement('section');
     const h2 = document.createElement('h2');
     h2.textContent = title;
@@ -1031,7 +1113,7 @@ function startCapture(button) {
   capture = { action: button.dataset.action, index: Number(button.dataset.index), button };
   button.classList.add('capturing');
   button.textContent = '…';
-  $('help-status').textContent = `Nouvelle touche pour « ${ACTION_LABEL[capture.action]} » : appuie dessus (clic ailleurs pour annuler)`;
+  $('help-status').textContent = `Nouvelle touche pour « ${actionLabel(capture.action)} » : appuie dessus (clic ailleurs pour annuler)`;
   // Le raccourci global est libéré pendant la saisie, sinon Windows garderait F10 pour lui.
   if (tauri) invoke('capture_shortcut', { on: true });
 }
@@ -1058,7 +1140,7 @@ function finishCapture(combo) {
     const i = list.indexOf(combo);
     if (i < 0) continue;
     if (REQUIRED.has(other) && list.length === 1) {
-      toast(`${prettyCombo(combo)} est la seule touche de « ${ACTION_LABEL[other]} »`, 2600);
+      toast(`${prettyCombo(combo)} est la seule touche de « ${actionLabel(other)} »`, 2600);
       if (tauri) invoke('capture_shortcut', { on: false });
       $('help-status').textContent = '';
       renderHelp();
@@ -1072,8 +1154,8 @@ function finishCapture(combo) {
   else if (!list.includes(combo)) list.push(combo);
   shortcuts[action] = [...new Set(list)];
   saveShortcuts(shortcuts, movedFrom
-    ? `${prettyCombo(combo)} : « ${ACTION_LABEL[action]} » (retirée de « ${ACTION_LABEL[movedFrom]} »)`
-    : `${prettyCombo(combo)} : « ${ACTION_LABEL[action]} »`);
+    ? `${prettyCombo(combo)} : « ${actionLabel(action)} » (retirée de « ${actionLabel(movedFrom)} »)`
+    : `${prettyCombo(combo)} : « ${actionLabel(action)} »`);
 }
 
 function removeKey(button) {
@@ -1081,11 +1163,11 @@ function removeKey(button) {
   const shortcuts = currentShortcuts();
   const list = shortcuts[action] ?? [];
   if (REQUIRED.has(action) && list.length <= 1) {
-    toast(`« ${ACTION_LABEL[action]} » doit garder une touche`, 2200);
+    toast(`« ${actionLabel(action)} » doit garder une touche`, 2200);
     return;
   }
   const [removed] = list.splice(Number(button.dataset.index), 1);
-  saveShortcuts(shortcuts, `${prettyCombo(removed)} retirée de « ${ACTION_LABEL[action]} »`);
+  saveShortcuts(shortcuts, `${prettyCombo(removed)} retirée de « ${actionLabel(action)} »`);
 }
 
 /** Une liste d'une seule touche est enregistrée comme une simple chaîne, plus lisible dans config.json. */
@@ -1110,6 +1192,11 @@ async function saveShortcuts(shortcuts, message, command = 'save_shortcuts') {
 }
 
 $('help').addEventListener('click', (e) => {
+  const op = e.target.closest('button[data-op]');
+  if (op) {
+    pluginOp(op.dataset.op, op.dataset.plugin);
+    return;
+  }
   const key = e.target.closest('button.key');
   if (key) {
     startCapture(key);
@@ -1141,6 +1228,7 @@ function toggleHelp(force) {
   const help = $('help');
   const open = force ?? !helpOpen();
   if (!open) cancelCapture();
+  else if (!helpOpen() && !pluginState.busy) refreshCatalog();
   help.classList.toggle('show', open);
 }
 
@@ -1150,6 +1238,142 @@ function changeWidth(delta) {
   toast(state.editing || state.tool === 'text' ? `Texte ${textSize()} px` : `Épaisseur ${state.width} px`);
   updateHud();
   requestRender();
+}
+
+// ───────────────────────── Plugins ─────────────────────────
+
+const pluginState = { catalog: null, installed: new Map(), busy: null, message: '' };
+
+async function activatePlugin(code, entry) {
+  const manifest = await plugins.load(code, entry);
+  pluginState.installed.set(manifest.id, manifest);
+  if (lastConfig) applyConfig(lastConfig);
+  else renderHelp();
+  return manifest;
+}
+
+/** Désactive un plugin sur-le-champ : ses objets s'effacent, ses touches disparaissent. */
+function deactivatePlugin(id) {
+  for (const o of state.objects) if (o.plugin === id) kill(o);
+  if (pluginTool()?.plugin === id) setTool('pen');
+  plugins.unload(id);
+  pluginState.installed.delete(id);
+  if (lastConfig) applyConfig(lastConfig);
+  requestRender();
+}
+
+/** Au démarrage : plugins installés (Tauri) ou indiqués dans l'adresse (?plugins=reseau, navigateur). */
+async function startPlugins() {
+  const list = tauri
+    ? (await invoke('plugin_list')) ?? []
+    : await Promise.all((new URLSearchParams(location.search).get('plugins')?.split(',') ?? []).map(async (id) => ({
+      manifest: {}, code: await (await fetch(`../plugins/${id}/plugin.js`)).text(),
+    })));
+  for (const { manifest, code } of list) {
+    try {
+      await activatePlugin(code, manifest);
+    } catch (err) {
+      console.error(err);
+      toast(`Plugin ${manifest.nom ?? manifest.id ?? ''} non chargé : ${err.message ?? err}`, 4000);
+    }
+  }
+  renderPluginPanel();
+}
+
+/** Les plugins installés se mettent à jour d'eux-mêmes (actifs au prochain démarrage). */
+async function updatePlugins() {
+  if (!tauri || !pluginState.installed.size) return;
+  const catalog = await tauri.core.invoke('plugin_catalog').catch(() => null);
+  if (!catalog) return;
+  pluginState.catalog = catalog;
+  for (const entry of catalog) {
+    const mine = pluginState.installed.get(entry.id);
+    if (mine && compareVersions(entry.version, mine.version ?? '0') > 0) await invoke('plugin_install', { id: entry.id });
+  }
+}
+
+const sizeLabel = (n) => (n ? ` · ${Math.max(1, Math.round(n / 1024))} Ko` : '');
+
+function renderPluginPanel() {
+  const box = $('help-plugins');
+  box.replaceChildren();
+  const h2 = document.createElement('h2');
+  h2.textContent = 'Plugins';
+  box.append(h2);
+  const rows = new Map();
+  for (const e of pluginState.catalog ?? []) rows.set(e.id, { entry: e });
+  for (const [id, m] of pluginState.installed) rows.set(id, { ...rows.get(id), entry: rows.get(id)?.entry ?? m, mine: m });
+  for (const { entry, mine } of rows.values()) {
+    const row = document.createElement('div');
+    row.className = 'plugin';
+    const name = document.createElement('b');
+    name.textContent = entry.nom ?? entry.id;
+    const info = document.createElement('span');
+    const newer = mine && entry.version && compareVersions(entry.version, mine.version ?? '0') > 0;
+    info.innerHTML = '';
+    info.append(entry.description ?? '');
+    const meta = document.createElement('span');
+    meta.className = 'muted';
+    meta.textContent = ` v${(mine ?? entry).version ?? '?'}${sizeLabel(entry.taille)}${mine ? ' · installé' : ''}${newer ? ` · v${entry.version} au prochain démarrage` : ''}`;
+    info.append(meta);
+    row.append(name, info);
+    if (tauri) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.dataset.plugin = entry.id;
+      button.dataset.op = mine ? 'remove' : 'install';
+      button.textContent = pluginState.busy === entry.id ? '…' : mine ? 'Retirer' : 'Installer';
+      button.disabled = !!pluginState.busy;
+      row.append(button);
+    }
+    box.append(row);
+  }
+  const note = document.createElement('p');
+  note.className = 'muted';
+  note.textContent = !tauri
+    ? 'Navigateur : ajoute ?plugins=reseau à l’adresse pour essayer un plugin du dossier plugins/.'
+    : pluginState.message || (pluginState.catalog ? '' : 'Recherche des plugins disponibles…');
+  if (note.textContent) box.append(note);
+}
+
+let catalogAt = 0;
+
+/** Catalogue des plugins, consulté à l'ouverture de l'aide (au plus toutes les 10 minutes). */
+async function refreshCatalog() {
+  renderPluginPanel();
+  if (!tauri || Date.now() - catalogAt < 600000) return;
+  catalogAt = Date.now();
+  try {
+    pluginState.catalog = await tauri.core.invoke('plugin_catalog');
+    pluginState.message = pluginState.catalog.length ? '' : 'Aucun plugin publié pour le moment.';
+  } catch (err) {
+    catalogAt = 0;
+    pluginState.message = `Catalogue indisponible : ${err}`;
+  }
+  renderPluginPanel();
+}
+
+async function pluginOp(op, id) {
+  pluginState.busy = id;
+  renderPluginPanel();
+  try {
+    if (op === 'install') {
+      const { manifest, code } = await tauri.core.invoke('plugin_install', { id });
+      const m = await activatePlugin(code, manifest);
+      const keys = [...plugins.actions.keys()].filter((a) => a.startsWith(`${m.id}.`)).map(keysOf).filter((k) => k !== '—');
+      toast(`Plugin ${m.nom} installé${keys.length ? ` : touche ${keys[0]}` : ''}`, 3000);
+    } else {
+      await tauri.core.invoke('plugin_remove', { id });
+      const nom = pluginState.installed.get(id)?.nom ?? id;
+      deactivatePlugin(id);
+      toast(`Plugin ${nom} retiré`, 2200);
+    }
+  } catch (err) {
+    toast(`Plugin : ${err.message ?? err}`, 4000);
+  } finally {
+    pluginState.busy = null;
+    renderPluginPanel();
+  }
 }
 
 // ───────────────────────── Souris / stylet ─────────────────────────
@@ -1180,8 +1404,11 @@ fxCv.addEventListener('pointerdown', (e) => {
     state.erasing = 'whole';
     state.lastErase = null;
     eraseAlong(p);
+  } else if (e.button === 0 && pluginTool()) {
+    state.pluginDown = true;
+    pluginTool().down?.(p, e);
   } else if (e.button === 0 && state.tool === 'stamp') {
-    state.placing = { a: p, b: p, regular: e.shiftKey };
+    state.placing = { a: snapToGrid(state.board, p), b: p, regular: e.shiftKey };
   } else if (e.button === 0 && state.tool === 'steps') {
     state.pending = p;
   } else if (e.button === 0) {
@@ -1205,7 +1432,8 @@ fxCv.addEventListener('pointermove', (e) => {
     } else if (state.erasing) eraseAlong(p);
   }
   state.pointer = pos(e);
-  if (state.placing) Object.assign(state.placing, { b: state.pointer, regular: e.shiftKey });
+  pluginTool()?.move?.(state.pointer, e);
+  if (state.placing) Object.assign(state.placing, { b: snapToGrid(state.board, state.pointer), regular: e.shiftKey });
   requestRender();
 });
 
@@ -1213,6 +1441,11 @@ function endPointer(e) {
   if (state.pending && e.type === 'pointerup') addStep(state.pending);
   state.pending = null;
   if (state.placing && e.type === 'pointerup') finishStamp();
+  if (state.pluginDown) {
+    state.pluginDown = false;
+    if (e.type === 'pointerup') pluginTool()?.up?.(pos(e), e);
+    else pluginTool()?.cancel?.();
+  }
   state.placing = null;
   if (state.active) finishStroke(e.shiftKey);
   state.erasing = false;
@@ -1279,6 +1512,7 @@ if (tauri) {
     } catch {}
     // Recherche peu après le démarrage, puis toutes les 2 heures.
     setTimeout(() => lookForUpdate(false), 15000);
+    setTimeout(() => updatePlugins(), 25000);
     setInterval(() => lookForUpdate(false), 2 * 3600 * 1000);
   })();
 } else {
@@ -1295,3 +1529,4 @@ if (tauri) {
 resize();
 renderHelp();
 updateHud();
+startPlugins();
