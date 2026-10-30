@@ -34,6 +34,15 @@ jobs:
       - run: npm test
       - run: npx tauri build
 
+      - name: Tailles des fichiers
+        shell: bash
+        run: |
+          echo "| Fichier | Taille |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          for f in src-tauri/target/release/NeonInk.exe src-tauri/target/release/bundle/nsis/*.exe src-tauri/target/release/bundle/msi/*.msi; do
+            echo "| $(basename "$f") | $(( $(stat -c %s "$f") / 1024 )) Ko |" >> $GITHUB_STEP_SUMMARY
+          done
+
       - name: Publier la release GitHub
         shell: bash
         env:

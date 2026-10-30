@@ -8,6 +8,7 @@ Appuyez sur **F10**, dessinez, puis **F10** à nouveau : les tracés sont masqu�
 - Trait néon : il naît « chauffé à blanc » puis refroidit vers sa couleur, et une comète lumineuse le parcourt quand on lève le stylo
 - Reconnaissance de formes : trait droit, courbe, cercle, ellipse, carré, rectangle, triangle. Le tracé se transforme en forme propre avec une animation
 - Gomme entière (le trait se consume en étincelles) ou gomme précise (n'enlève qu'une partie du trait)
+- Traits en tirets et texte écrit au clavier, en néon lui aussi
 - Étapes numérotées : chaque clic pose une pastille ①, ②, ③… reliée à la précédente par une flèche courbe. Glisser dessine un trait ou une forme sans quitter le mode. Effacer une étape renumérote les suivantes
 - Plusieurs écrans : le calque s'ouvre sur l'écran où se trouve la souris
 - Léger : aucune image n'est calculée quand rien ne bouge, et la fenêtre est masquée hors du mode dessin
@@ -27,6 +28,8 @@ Appuyez sur **F10**, dessinez, puis **F10** à nouveau : les tracés sont masqu�
 | **T** | Gomme précise : efface seulement la partie touchée |
 | **S** | Étapes numérotées (1 → 2 → 3) : clic = pastille, glisser = trait ou forme |
 | **N** | Nouvelle séquence d'étapes (repart à 1) |
+| **I** | Texte : le curseur apparaît sous la souris, on écrit au clavier (Entrée : nouvelle ligne, Échap ou clic : terminer) |
+| **L** | Traits pleins / en tirets |
 | **F** | Formes auto activées / désactivées |
 | **Maj** en relâchant | Garder ce tracé à main levée |
 | **Ctrl+Z** / **Retour arrière** | Annuler le dernier élément |
@@ -125,6 +128,8 @@ npm run release -- minor
 ```bash
 git push --follow-tags
 ```
+
+Les builds de contrôle (`build.yml`) utilisent une optimisation plus légère pour aller plus vite ; les releases gardent l'optimisation complète, qui donne l'exécutable le plus léger (environ 2,9 Mo, installateur 1,2 Mo). Le résumé de chaque release indique la taille des fichiers.
 
 Le script met à jour les numéros de version et le CHANGELOG, puis crée le commit et le tag. Il accepte `patch`, `minor`, `major` ou un numéro précis.
 Le push du tag lance le workflow « Release », qui compile l'application et publie les installateurs et l'exécutable portable dans les [Releases GitHub](https://github.com/pmaldi/neon-ink/releases) avec les notes du CHANGELOG.

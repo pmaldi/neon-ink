@@ -7,6 +7,14 @@ et le projet respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Ajouté
+- Outil texte (**I**) : le curseur apparaît sous la souris et l'on écrit directement au clavier, en néon (accents compris). Entrée pour une nouvelle ligne, Échap ou un clic pour terminer, molette pour la taille. Le texte s'efface à la gomme.
+- Traits en tirets (**L**), formes reconnues comprises.
+
+### Modifié
+- Exécutable allégé de 16 % (2,9 Mo) et installateur de 10 % (1,2 Mo) : fonctions inutilisées de Tauri retirées, optimisation de taille maximale.
+- Builds de contrôle sur GitHub plus rapides : optimisation plus légère, fichiers envoyés sans recompression, cache sauvegardé depuis `main` uniquement.
+
 ## [0.5.0] - 2026-10-30
 
 ### Ajouté
