@@ -1030,7 +1030,10 @@ const ACTIONS = {
     requestRender();
   },
   formes() {
-    // Roue des formes : maintenir et relâcher sur la forme, ou appuyer puis cliquer.
+    // Roue du mode en cours : celle de l'outil de plugin actif s'il en a une, sinon celle des formes.
+    // Maintenir et relâcher sur un choix, ou appuyer puis cliquer.
+    const tool = pluginTool();
+    if (tool?.wheel) return tool.wheel();
     openWheel({
       items: STAMPS.map((s) => ({
         label: s.label.slice(2),
@@ -1203,7 +1206,7 @@ const HELP_TABS = [
   { id: 'outils', title: 'Outils', groups: [
     ['Tracer', [
       ['stylo', 'Stylo'],
-      ['formes', 'Roue des formes', 'Maintenir et relâcher sur une forme, ou appuyer puis cliquer · Maj en traçant : forme régulière'],
+      ['formes', 'Roue des formes', 'Maintenir et relâcher sur une forme, ou appuyer puis cliquer · avec un outil de plugin actif : sa roue · Maj en traçant : forme régulière'],
       ['texte', 'Texte au clavier', 'Échap ou un clic pour terminer'],
       ['tirets', 'Trait plein / en tirets'],
       ['formesAuto', 'Reconnaissance des formes on / off', 'Maj en relâchant : garder le tracé à main levée'],

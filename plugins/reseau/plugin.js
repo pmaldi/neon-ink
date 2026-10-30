@@ -13,7 +13,7 @@ export const manifest = {
   id: 'reseau',
   nom: 'Réseau',
   description: 'Plans réseau : routeur, switch, serveur, PC, pare-feu, Internet et Wi-Fi, reliés par des liens animés.',
-  version: '1.1.0',
+  version: '1.2.0',
   api: 1,
 };
 
@@ -263,7 +263,30 @@ export function activate(api) {
     },
   });
 
+  /** Roue des appareils (touche J, ou touche des formes quand l'outil réseau est actif). */
+  function deviceWheel() {
+    if (!api.wheel) {
+      // NeonInk antérieur à 0.10 : pas de roue, la touche passe à l'appareil suivant.
+      if (api.toolActive('reseau')) current = (current + 1) % DEVICES.length;
+      api.useTool('reseau');
+      return;
+    }
+    api.wheel({
+      items: DEVICES.map((d) => ({
+        label: d.label,
+        draw: (ctx, x, y, s, color, alpha, now) => drawDevice(ctx, { device: d.kind, color }, x, y, s, clock(now), alpha),
+      })),
+      selected: current,
+      onPick(i) {
+        current = i;
+        api.useTool('reseau');
+        api.refreshHud();
+      },
+    });
+  }
+
   api.defineTool('reseau', {
+    wheel: deviceWheel,
     label: () => `Réseau : ${ICON[DEVICES[current].kind]} ${DEVICES[current].label}`,
     busy: () => !!linking,
     down(p) {
@@ -315,26 +338,7 @@ export function activate(api) {
     label: 'Roue des appareils réseau',
     hint: 'Maintenir et relâcher sur un appareil, ou appuyer puis cliquer · glisser d’un appareil à l’autre : relier',
     key: 'J',
-    run() {
-      if (!api.wheel) {
-        // NeonInk antérieur à 0.10 : pas de roue, la touche passe à l'appareil suivant.
-        if (api.toolActive('reseau')) current = (current + 1) % DEVICES.length;
-        api.useTool('reseau');
-        return;
-      }
-      api.wheel({
-        items: DEVICES.map((d) => ({
-          label: d.label,
-          draw: (ctx, x, y, s, color, alpha, now) => drawDevice(ctx, { device: d.kind, color }, x, y, s, clock(now), alpha),
-        })),
-        selected: current,
-        onPick(i) {
-          current = i;
-          api.useTool('reseau');
-          api.refreshHud();
-        },
-      });
-    },
+    run: () => deviceWheel(),
   });
 
   api.defineAction('animation', {

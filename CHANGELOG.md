@@ -7,6 +7,9 @@ et le projet respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Corrigé
+- Le **clic molette** et **M** ouvrent la roue du mode en cours : avec l'outil réseau actif, c'est la roue des appareils, et non plus celle des formes. Les plugins peuvent fournir la roue de leur outil (`wheel()` dans `defineTool`). Le plugin réseau passe en 1.2.0.
+
 ## [0.10.1] - 2026-10-30
 
 ### Modifié

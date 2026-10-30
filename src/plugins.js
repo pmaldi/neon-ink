@@ -41,7 +41,8 @@ export function createPluginHost(host) {
       },
       /**
        * Outil : { label(), down(p, e), move(p, e), up(p, e), cancel(), preview(ctx, now),
-       * cursor(ctx, p, now), busy() }. Rend le nom complet de l'outil, pour `useTool`.
+       * cursor(ctx, p, now), busy(), wheel() }. `wheel` : roue ouverte par la touche des formes
+       * (M, clic molette) quand l'outil est actif. Rend le nom complet de l'outil, pour `useTool`.
        */
       defineTool(tool, def) {
         const key = `plugin:${name(tool)}`;
