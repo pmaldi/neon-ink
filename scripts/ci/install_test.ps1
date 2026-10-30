@@ -16,6 +16,7 @@ function Check($ok, $label) {
 # Attend la fin du programme lui-même (pas de ses descendants : l'installateur relance NeonInk), 3 minutes au plus.
 function Run($file, $arguments) {
   $p = Start-Process -FilePath $file -ArgumentList $arguments -PassThru
+  $null = $p.Handle  # sans cela, PowerShell ne conserve pas le code de retour
   if (-not $p.WaitForExit(180000)) {
     $p | Stop-Process -Force
     Write-Host "Délai dépassé : $file $arguments"
