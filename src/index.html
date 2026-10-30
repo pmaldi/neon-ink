@@ -30,7 +30,14 @@
     <div class="help-panel">
       <h1><span class="neon-word">NeonInk</span></h1>
       <div class="cols" id="help-cols"></div>
-      <p class="help-foot">Raccourcis personnalisables : menu de l’icône NeonInk › Personnaliser les raccourcis</p>
+      <p class="help-status" id="help-status" aria-live="polite"></p>
+      <div class="help-foot">
+        <span>Clic sur une touche pour la changer · <b>+</b> pour en ajouter une · clic droit pour la retirer</span>
+        <span class="help-actions">
+          <button id="help-reset" type="button">Touches d’origine</button>
+          <button id="help-file" type="button">Ouvrir config.json</button>
+        </span>
+      </div>
     </div>
   </div>
 

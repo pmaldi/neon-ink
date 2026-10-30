@@ -79,14 +79,75 @@ fn global_shortcut(config: &Value) -> Option<Shortcut> {
     combos.iter().find_map(|c| Shortcut::from_str(&c.replace("Échap", "Escape").replace("Maj", "Shift")).ok())
 }
 
+fn register(app: &AppHandle, shortcut: Shortcut) -> Result<(), String> {
+    let manager = app.global_shortcut();
+    let _ = manager.unregister_all();
+    manager.register(shortcut).map_err(|e| format!("touche déjà prise par une autre application ({e})"))
+}
+
 /// Enregistre le raccourci global (F10 par défaut) selon la configuration.
 pub fn register_global_shortcut(app: &AppHandle, config: &Value) {
     let shortcut = global_shortcut(config).unwrap_or_else(|| Shortcut::from_str("F10").unwrap());
-    let manager = app.global_shortcut();
-    let _ = manager.unregister_all();
-    if let Err(e) = manager.register(shortcut) {
+    if let Err(e) = register(app, shortcut) {
         eprintln!("raccourci global indisponible : {e}");
     }
+}
+
+/// Remplace la section `raccourcis` de config.json en gardant le reste du fichier (liens…).
+fn write_shortcuts(app: &AppHandle, shortcuts: &Value) -> Result<(), String> {
+    let p = ensure_file(app).ok_or("dossier de configuration introuvable")?;
+    let mut user = std::fs::read_to_string(&p)
+        .ok()
+        .and_then(|t| serde_json::from_str::<Value>(&t).ok())
+        .filter(Value::is_object)
+        .unwrap_or_else(|| serde_json::from_str(DEFAULT).unwrap());
+    user["raccourcis"] = shortcuts.clone();
+    let text = serde_json::to_string_pretty(&user).map_err(|e| e.to_string())?;
+    std::fs::write(&p, text).map_err(|e| format!("config.json non enregistré ({e})"))
+}
+
+/// Applique et enregistre les raccourcis modifiés depuis l'aide. Le raccourci global est
+/// vérifié d'abord : s'il est refusé, rien n'est changé.
+fn apply_shortcuts(app: &AppHandle, state: &Config, shortcuts: Value) -> Result<Value, String> {
+    let previous = state.current.lock().unwrap().clone();
+    let mut config = previous.clone();
+    config["raccourcis"] = shortcuts;
+    let shortcut = global_shortcut(&config).ok_or("cette touche ne peut pas servir de raccourci global")?;
+    if let Err(e) = register(app, shortcut) {
+        register_global_shortcut(app, &previous);
+        return Err(e);
+    }
+    write_shortcuts(app, &config["raccourcis"])?;
+    config["erreurs"] = json!([]);
+    *state.current.lock().unwrap() = config.clone();
+    Ok(config)
+}
+
+#[tauri::command]
+pub fn save_shortcuts(app: AppHandle, state: State<Config>, raccourcis: Value) -> Result<Value, String> {
+    apply_shortcuts(&app, &state, raccourcis)
+}
+
+#[tauri::command]
+pub fn reset_shortcuts(app: AppHandle, state: State<Config>) -> Result<Value, String> {
+    let defaults: Value = serde_json::from_str(DEFAULT).unwrap();
+    apply_shortcuts(&app, &state, defaults["raccourcis"].clone())
+}
+
+/// Pendant la saisie d'une nouvelle touche dans l'aide, le raccourci global est libéré :
+/// sinon Windows intercepterait F10 avant l'interface.
+#[tauri::command]
+pub fn capture_shortcut(app: AppHandle, state: State<Config>, on: bool) {
+    if on {
+        let _ = app.global_shortcut().unregister_all();
+    } else {
+        register_global_shortcut(&app, &state.current.lock().unwrap());
+    }
+}
+
+#[tauri::command]
+pub fn open_config_file(app: AppHandle) {
+    edit(&app);
 }
 
 pub fn get_config_value(config: &Config) -> Value {

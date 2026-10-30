@@ -212,6 +212,10 @@ fn main() {
             hide_overlay,
             config::get_config,
             config::open_link,
+            config::save_shortcuts,
+            config::reset_shortcuts,
+            config::capture_shortcut,
+            config::open_config_file,
             updater::update_config,
             updater::update_available,
             updater::update_status
@@ -253,7 +257,7 @@ fn main() {
                 settings.auto_update,
                 None::<&str>,
             )?;
-            let shortcuts = MenuItem::with_id(app, "shortcuts", "Personnaliser les raccourcis…", true, None::<&str>)?;
+            let shortcuts = MenuItem::with_id(app, "shortcuts", "Raccourcis clavier…", true, None::<&str>)?;
             let launch_at_login = CheckMenuItem::with_id(
                 app,
                 "autostart",
@@ -292,7 +296,11 @@ fn main() {
                         let _ = app.emit("clear-all", ());
                     }
                     "update" => updater::on_menu_click(app),
-                    "shortcuts" => config::edit(app),
+                    "shortcuts" => {
+                        // L'aide s'ouvre en mode dessin : chaque touche s'y modifie d'un clic.
+                        apply_draw_mode(app, true, false);
+                        let _ = app.emit("open-help", ());
+                    }
                     "auto-update" => {
                         let on = auto_update.is_checked().unwrap_or(true);
                         let mut s = settings::Settings::load(app);

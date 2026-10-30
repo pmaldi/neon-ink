@@ -7,6 +7,13 @@ et le projet respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Ajouté
+- Les raccourcis se changent directement dans l'aide : clic sur une touche puis appui sur la nouvelle, **+** pour en ajouter une, clic droit pour la retirer, bouton « Touches d'origine ». Le raccourci global (F10) aussi.
+- Menu de l'icône › « Raccourcis clavier… » ouvre cette aide.
+
+### Modifié
+- `config.json` garde l'ordre de ses réglages quand NeonInk l'enregistre.
+
 ## [0.4.0] - 2026-10-30
 
 ### Ajouté

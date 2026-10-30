@@ -582,6 +582,7 @@ const COLOR_ACTIONS = {
 // Remplacés par la configuration (config.json via Tauri, valeurs d'origine dans le navigateur).
 let keymap = buildKeymap({ basculerDessin: 'F10', effacerEtQuitter: 'Escape' });
 let links = [];
+let defaultShortcuts = null; // valeurs d'origine (bouton « Touches d'origine » dans le navigateur)
 
 function applyConfig(config) {
   keymap = buildKeymap(config.raccourcis);
@@ -671,6 +672,12 @@ function firework(x, y) {
 }
 
 function onKey(e) {
+  if (capture) {
+    e.preventDefault();
+    // On attend la vraie touche : Maj, Ctrl ou Alt seuls ne suffisent pas.
+    if (!['Shift', 'Control', 'Alt', 'Meta', 'AltGraph', 'CapsLock', 'Dead'].includes(e.key)) finishCapture(eventCombo(e));
+    return;
+  }
   const combo = eventCombo(e);
   const action = keymap.map.get(combo);
   // Hors Tauri (navigateur, pour le développement), le raccourci global bascule localement.
@@ -715,6 +722,19 @@ const HELP_SECTIONS = [
 ];
 
 const keysOf = (action) => (keymap.byAction[action] ?? []).map(prettyCombo).join(' · ') || '—';
+const ACTION_LABEL = Object.fromEntries(HELP_SECTIONS.flatMap(([, entries]) => entries.map(([action, label]) => [action, label.split(' (')[0]])));
+// Une action qui doit toujours garder au moins une touche.
+const REQUIRED = new Set(['basculerDessin', 'aide']);
+
+function keyButton(text, action, index) {
+  const btn = document.createElement('button');
+  btn.className = index < 0 ? 'key add' : 'key';
+  btn.textContent = text;
+  btn.dataset.action = action;
+  btn.dataset.index = index;
+  btn.title = index < 0 ? 'Ajouter une touche' : 'Clic : changer · clic droit : retirer';
+  return btn;
+}
 
 function renderHelp() {
   const cols = $('help-cols');
@@ -729,7 +749,8 @@ function renderHelp() {
     for (const [action, label, swatch] of entries) {
       const dt = document.createElement('dt');
       const dd = document.createElement('dd');
-      dt.textContent = keysOf(action);
+      (keymap.byAction[action] ?? []).forEach((combo, i) => dt.append(keyButton(prettyCombo(combo), action, i)));
+      dt.append(keyButton('+', action, -1));
       dd.textContent = label;
       if (swatch) dd.style.setProperty('--k', swatch);
       for (const el of [dt, dd]) el.style.setProperty('--i', row);
@@ -742,11 +763,126 @@ function renderHelp() {
   $('hud-hint').textContent = `${keysOf('aide').split(' · ')[0]} aide · ${keysOf('basculerDessin')} masquer · ${keysOf('effacerEtQuitter')} effacer`;
 }
 
+// ───────────────────────── Modifier les touches depuis l'aide ─────────────────────────
+
+let capture = null; // { action, index, button }
+let savedAt = 0;
+
+function startCapture(button) {
+  cancelCapture();
+  capture = { action: button.dataset.action, index: Number(button.dataset.index), button };
+  button.classList.add('capturing');
+  button.textContent = '…';
+  $('help-status').textContent = `Nouvelle touche pour « ${ACTION_LABEL[capture.action]} » : appuie dessus (clic ailleurs pour annuler)`;
+  // Le raccourci global est libéré pendant la saisie, sinon Windows garderait F10 pour lui.
+  if (tauri) invoke('capture_shortcut', { on: true });
+}
+
+function cancelCapture() {
+  if (!capture) return;
+  capture = null;
+  if (tauri) invoke('capture_shortcut', { on: false });
+  $('help-status').textContent = '';
+  renderHelp();
+}
+
+/** Copie modifiable des raccourcis en vigueur (formes canoniques). */
+const currentShortcuts = () => Object.fromEntries(Object.entries(keymap.byAction).map(([a, list]) => [a, [...list]]));
+
+function finishCapture(combo) {
+  const { action, index } = capture;
+  capture = null;
+  const shortcuts = currentShortcuts();
+  // La touche quitte l'action qui l'utilisait déjà.
+  let movedFrom = null;
+  for (const [other, list] of Object.entries(shortcuts)) {
+    if (other === action) continue;
+    const i = list.indexOf(combo);
+    if (i < 0) continue;
+    if (REQUIRED.has(other) && list.length === 1) {
+      toast(`${prettyCombo(combo)} est la seule touche de « ${ACTION_LABEL[other]} »`, 2600);
+      if (tauri) invoke('capture_shortcut', { on: false });
+      $('help-status').textContent = '';
+      renderHelp();
+      return;
+    }
+    list.splice(i, 1);
+    movedFrom = other;
+  }
+  const list = shortcuts[action] ?? (shortcuts[action] = []);
+  if (index >= 0) list[index] = combo;
+  else if (!list.includes(combo)) list.push(combo);
+  shortcuts[action] = [...new Set(list)];
+  saveShortcuts(shortcuts, movedFrom
+    ? `${prettyCombo(combo)} : « ${ACTION_LABEL[action]} » (retirée de « ${ACTION_LABEL[movedFrom]} »)`
+    : `${prettyCombo(combo)} : « ${ACTION_LABEL[action]} »`);
+}
+
+function removeKey(button) {
+  const action = button.dataset.action;
+  const shortcuts = currentShortcuts();
+  const list = shortcuts[action] ?? [];
+  if (REQUIRED.has(action) && list.length <= 1) {
+    toast(`« ${ACTION_LABEL[action]} » doit garder une touche`, 2200);
+    return;
+  }
+  const [removed] = list.splice(Number(button.dataset.index), 1);
+  saveShortcuts(shortcuts, `${prettyCombo(removed)} retirée de « ${ACTION_LABEL[action]} »`);
+}
+
+/** Une liste d'une seule touche est enregistrée comme une simple chaîne, plus lisible dans config.json. */
+const compact = (shortcuts) => Object.fromEntries(Object.entries(shortcuts).map(([a, l]) => [a, l.length === 1 ? l[0] : l]));
+
+async function saveShortcuts(shortcuts, message, command = 'save_shortcuts') {
+  $('help-status').textContent = '';
+  if (!tauri) {
+    applyConfig({ raccourcis: command === 'reset_shortcuts' ? defaultShortcuts : compact(shortcuts), liens: links });
+    toast(message, 2200);
+    return;
+  }
+  try {
+    savedAt = performance.now();
+    const config = await tauri.core.invoke(command, command === 'reset_shortcuts' ? {} : { raccourcis: compact(shortcuts) });
+    applyConfig(config);
+    toast(message, 2200);
+  } catch (err) {
+    toast(`Touche refusée : ${err}`, 3500);
+    renderHelp();
+  }
+}
+
+$('help').addEventListener('click', (e) => {
+  const key = e.target.closest('button.key');
+  if (key) {
+    startCapture(key);
+    return;
+  }
+  if (e.target.closest('#help-reset')) {
+    cancelCapture();
+    saveShortcuts(null, 'Touches d’origine rétablies', 'reset_shortcuts');
+    return;
+  }
+  if (e.target.closest('#help-file')) {
+    cancelCapture();
+    if (tauri) invoke('open_config_file');
+    return;
+  }
+  if (capture) cancelCapture();
+  else if (!e.target.closest('.help-panel')) toggleHelp(false);
+});
+
+$('help').addEventListener('contextmenu', (e) => {
+  const key = e.target.closest('button.key:not(.add)');
+  if (!key || capture) return;
+  removeKey(key);
+});
+
 const helpOpen = () => $('help').classList.contains('show');
 
 function toggleHelp(force) {
   const help = $('help');
   const open = force ?? !helpOpen();
+  if (!open) cancelCapture();
   help.classList.toggle('show', open);
 }
 
@@ -852,8 +988,10 @@ if (tauri) {
   tauri.event.listen('check-update', () => lookForUpdate(true));
   tauri.event.listen('config-changed', (e) => {
     applyConfig(e.payload);
-    if (state.drawMode) toast('Raccourcis rechargés');
+    // Le fichier vient d'être écrit par l'aide elle-même : inutile de l'annoncer.
+    if (state.drawMode && performance.now() - savedAt > 4000) toast('Raccourcis rechargés');
   });
+  tauri.event.listen('open-help', () => toggleHelp(true));
   invoke('get_config').then((config) => config && applyConfig(config));
   (async () => {
     appVersion = await tauri.app.getVersion();
@@ -870,7 +1008,13 @@ if (tauri) {
   })();
 } else {
   document.body.classList.add('browser');
-  fetch('config.default.json').then((r) => r.json()).then(applyConfig).catch(console.error);
+  fetch('config.default.json')
+    .then((r) => r.json())
+    .then((config) => {
+      defaultShortcuts = config.raccourcis;
+      applyConfig(config);
+    })
+    .catch(console.error);
 }
 
 resize();

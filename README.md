@@ -39,19 +39,16 @@ Les lettres suivent la disposition du clavier (AZERTY compris). Le bouton gomme 
 
 ### Personnaliser les raccourcis
 
-Menu de l'icône › **Personnaliser les raccourcis…** ouvre `config.json` (dans `%APPDATA%\com.patrice.neonink\`) dans le Bloc-notes. NeonInk le recharge dès qu'il est enregistré, raccourci global compris, et l'aide (**H**) affiche toujours les touches en vigueur.
+Dans l'aide (**H**, ou menu de l'icône › **Raccourcis clavier…**), chaque touche se modifie d'un clic :
 
-```json
-"raccourcis": {
-  "basculerDessin": "F9",
-  "annuler": ["Ctrl+Z", "Backspace"],
-  "tableauNoir": "Shift+K"
-}
-```
+- **clic sur une touche**, puis appui sur la nouvelle (Maj, Ctrl, Alt acceptés) ; un clic ailleurs annule ;
+- **+** en bout de ligne ajoute une touche de plus pour la même action ;
+- **clic droit** sur une touche la retire ;
+- **Touches d'origine** rétablit tout.
 
-Une action reçoit une touche, une combinaison (modificateurs `Ctrl`, `Alt`, `Shift`) ou une liste de choix. Les actions absentes gardent leur touche d'origine ; une touche attribuée deux fois ou illisible est signalée à l'écran. Supprimer le fichier rétablit les réglages d'origine (`src/config.default.json`). La section `liens` liste les liens affichés par… un petit secret, à découvrir en mode dessin.
-L'icône dans la zone de notification permet d'activer le dessin, de tout effacer, de mettre à jour, de choisir les mises à jour automatiques et le lancement avec Windows, ou de quitter.
-Relancer NeonInk alors qu'il tourne déjà (menu Démarrer) active simplement le dessin.
+Une touche déjà utilisée par une autre action lui est retirée (un message le signale). Le raccourci global (F10) se change de la même façon : NeonInk le libère le temps de la saisie.
+
+Tout est enregistré dans `config.json` (`%APPDATA%\com.patrice.neonink\`), que le bouton **Ouvrir config.json** ouvre dans le Bloc-notes. Le fichier reste modifiable à la main et NeonInk le recharge dès qu'il est enregistré. Sa section `liens` liste les liens affichés par… un petit secret, à découvrir en mode dessin.
 
 ## Technologie
 

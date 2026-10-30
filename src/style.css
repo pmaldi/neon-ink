@@ -119,6 +119,7 @@ body.drawing #hud.idle { opacity: 0.38; }
 /* Notification brève */
 #toast {
   position: fixed;
+  z-index: 10; /* au-dessus de l’aide */
   left: 50%;
   bottom: 64px;
   transform: translate(-50%, 10px) scale(0.96);
@@ -156,7 +157,7 @@ body.drawing #hud.idle { opacity: 0.38; }
   background: radial-gradient(ellipse at center, rgba(4, 5, 12, 0.35), rgba(4, 5, 12, 0.7));
   transition: opacity 200ms ease;
 }
-#help.show { opacity: 1; }
+#help.show { opacity: 1; pointer-events: auto; }
 
 .help-panel {
   position: relative;
@@ -201,16 +202,39 @@ body.drawing #hud.idle { opacity: 0.38; }
 
 #help .cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px; }
 #help h2 { margin: 0 0 10px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); }
-#help dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 7px 12px; align-items: baseline; font-size: 13px; }
-#help dt {
-  justify-self: start;
+#help dl { margin: 0; display: grid; grid-template-columns: 112px 1fr; gap: 7px 12px; align-items: baseline; font-size: 13px; }
+#help dt { justify-self: start; display: flex; flex-wrap: wrap; gap: 4px; }
+
+/* Touches cliquables : clic pour changer, « + » pour ajouter, clic droit pour retirer. */
+.key {
+  font: 600 12px/1.45 inherit;
+  font-family: inherit;
+  color: var(--text);
   white-space: nowrap;
   padding: 1px 7px;
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  font-weight: 600;
-  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease, background 140ms ease;
+}
+.key:hover, .key:focus-visible {
+  outline: none;
+  border-color: var(--c);
+  background: color-mix(in srgb, var(--c) 18%, transparent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--c) 55%, transparent);
+  transform: translateY(-1px);
+}
+.key.add { padding: 1px 6px; border-style: dashed; color: var(--muted); opacity: 0.35; }
+dt:hover .key.add, .key.add:focus-visible { opacity: 1; }
+.key.capturing {
+  border-color: var(--c);
+  color: #fff;
+  min-width: 34px;
+  animation: capture 900ms ease-in-out infinite;
+}
+@keyframes capture {
+  50% { box-shadow: 0 0 16px var(--c), 0 0 2px var(--c) inset; background: color-mix(in srgb, var(--c) 30%, transparent); }
 }
 #help dd { margin: 0; color: #cfd3ea; }
 
@@ -236,7 +260,30 @@ body.drawing #hud.idle { opacity: 0.38; }
 #help.show .colors dd::before { animation: pulse 1.8s ease-in-out infinite; animation-delay: calc(var(--i, 0) * -170ms); }
 @keyframes pulse { 50% { box-shadow: 0 0 2px var(--k); transform: scale(0.8); } }
 
-.help-foot { margin: 16px 0 0; font-size: 11.5px; color: var(--muted); text-align: center; }
+.help-status { min-height: 18px; margin: 14px 0 0; font-size: 12.5px; text-align: center; color: #fff; text-shadow: 0 0 10px var(--c); }
+.help-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.help-actions { display: flex; gap: 8px; }
+.help-actions button {
+  font: inherit;
+  color: var(--text);
+  padding: 4px 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+.help-actions button:hover { border-color: var(--c); box-shadow: 0 0 10px color-mix(in srgb, var(--c) 50%, transparent); }
+body.browser #help-file { display: none; }
 
 /* ───────── Petit secret (K, A, L) ───────── */
 
