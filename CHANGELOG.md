@@ -7,6 +7,11 @@ et le projet respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Ajouté
+- Huit nouveaux plugins, à installer depuis l'aide (onglet Plugins) : **Isométrique** (Maj+I), **Organigramme** (Q), **UML et bases de données** (Maj+Q), **Cloud** (U), **Annotations** (Z), **Présentation** (A : spot, loupe, laser, rideau), **Minuteur** (Maj+T) et **Géométrie** (Maj+R).
+- **Réseau 2.0** : étiquettes et adresses IP sur les appareils et les liens (Maj+clic), zones nommées (Ctrl+J), types de câble cuivre, fibre, VPN et sans fil (Alt+J).
+- Pour les plugins : saisie de texte, calque au-dessus des dessins, objets modifiables après coup et image de l'écran (voir plugins/README.md). Un minuteur reste affiché après F10, sans les dessins.
+
 ## [0.10.2] - 2026-10-30
 
 ### Corrigé

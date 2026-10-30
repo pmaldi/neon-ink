@@ -15,7 +15,7 @@ Appuyez sur **F10**, dessinez, puis **F10** à nouveau : les tracés sont masqu�
 - Plusieurs écrans : le calque s'ouvre sur l'écran où se trouve la souris
 - Léger : aucune image n'est calculée quand rien ne bouge, et la fenêtre est masquée hors du mode dessin
 - Tableau noir ou blanc, papier petits carreaux ou grands carreaux (Seyès) : un fond opaque pour dessiner sur une page vierge, avec les formes aimantées au quadrillage
-- Plugins à installer depuis l'aide, sans alourdir l'application : par exemple **Réseau**, pour des plans réseau animés (routeur, switch, serveur, PC, pare-feu, Internet, Wi-Fi)
+- Plugins à installer depuis l'aide, sans alourdir l'application : réseau, isométrique, organigramme, UML, cloud, annotations, présentation (spot, loupe, laser, rideau), minuteur et géométrie
 - Mises à jour automatiques : la nouvelle version s'installe d'elle-même quand NeonInk ne sert pas
 - Raccourcis personnalisables dans un fichier de configuration, rechargé à chaud
 
@@ -145,7 +145,19 @@ Le push du tag lance le workflow « Release », qui compile l'application et pub
 
 Des fonctionnalités en plus, absentes des installateurs : chacune se télécharge depuis l'aide (**H**), onglet **Plugins**, bouton **Installer**. Un plugin installé se charge à chaque démarrage, ajoute ses touches à l'aide et se met à jour tout seul ; **Retirer** le désactive aussitôt.
 
-**Réseau** : plans réseau en néon. **J** ouvre la roue des appareils (routeur, switch, serveur, PC, pare-feu, Internet, borne Wi-Fi) : maintenir **J**, viser l'appareil, relâcher ; ou appuyer sur **J** puis cliquer dessus. La roue peut aussi s'ouvrir avec un bouton de la souris (voir ci-dessous). Un clic pose l'appareil, nommé automatiquement (R1, SW1, PC2…). Glisser d'un appareil à un autre les relie ; glisser vers le vide pose un nouvel appareil déjà relié. Des paquets circulent sur les liens, les voyants clignotent ; **Maj+J** met les animations en pause. Sur papier à carreaux, les appareils s'alignent sur le quadrillage.
+Dans tous les plugins, **M** ou le **clic molette** rouvre la roue de l'outil actif, **Maj+clic** sur un élément modifie son texte, et la gomme efface un élément avec ses liens.
+
+| Plugin | Touche | Ce qu'il apporte |
+|---|---|---|
+| **Réseau** | **J** | Routeur, switch, serveur, PC, pare-feu, Internet, Wi-Fi, animés, nommés automatiquement (R1, SW1…). Glisser d'un appareil à un autre les relie ; vers le vide, pose un appareil déjà relié. **Alt+J** : type de câble (cuivre, fibre, VPN, sans fil) ; **Ctrl+J** : zone nommée (LAN, DMZ…) ; Maj+clic : étiquette ou adresse IP sur un appareil ou un lien ; **Maj+J** : animations en pause |
+| **Isométrique** | **Maj+I** | Serveur, switch, routeur, PC, pare-feu, base de données, cloud, conteneur et utilisateur en volumes néon à 30°, reliés par des chemins animés. **Alt+I** : grille isométrique |
+| **Organigramme** | **Q** | Étape, décision, début / fin, données, document, sous-processus. Le clic pose la forme et demande son texte ; glisser d'une forme à l'autre trace une flèche ; **Ctrl+glisser** déplace une forme, les flèches suivent ; Maj+clic sur une flèche : « oui », « non » |
+| **UML et bases de données** | **Maj+Q** | Tables (`Client: id PK, nom, pays_id FK`), classes (`Chien: -race | +aboyer()`), relations 1-1, 1-N, N-N en pattes de corbeau, héritage |
+| **Cloud** | **U** | Machine virtuelle, conteneur, cluster, base de données, stockage, répartiteur, fonction, file de messages, CDN, passerelle API, utilisateurs, région. Flux animés entre les services |
+| **Annotations** | **Z** | Tampons ✔ ✖ ? ! ★ ♥, bulles de commentaire (glisser du point visé vers la bulle) et notes post-it |
+| **Présentation** | **A** | Spot (l'écran s'assombrit autour de la souris), loupe ×2, pointeur laser, rideau à dévoiler. La molette règle la taille du spot et de la loupe |
+| **Minuteur** | **Maj+T** | Compte à rebours (1 à 30 min) ou chronomètre, dans un anneau en haut à droite ; il reste affiché après F10. **Maj+T** : pause, **Alt+T** : arrêt |
+| **Géométrie** | **Maj+R** | Règle graduée, rapporteur, compas, repère, angle droit. 1 cm = 2 petits carreaux ; les points s'aimantent au quadrillage |
 
 Pour écrire un plugin : [plugins/README.md](plugins/README.md).
 
