@@ -8,7 +8,7 @@ et le projet respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 ## [Unreleased]
 
 ### Modifié
-- **M** ouvre la roue des formes (rectangle, rond, triangle, étoile, flèche), comme **J** pour les appareils réseau : maintenir, viser, relâcher, ou appuyer puis cliquer.
+- **M** ou le **clic molette** ouvrent la roue des formes (rectangle, rond, triangle, étoile, flèche), comme **J** pour les appareils réseau : maintenir, viser, relâcher, ou appuyer puis cliquer. Les configurations existantes reçoivent le clic molette une seule fois, s'il n'est pas déjà utilisé.
 
 ## [0.10.0] - 2026-10-30
 

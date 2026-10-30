@@ -33,7 +33,7 @@ Appuyez sur **F10**, dessinez, puis **F10** à nouveau : les tracés sont masqu�
 | **N** | Nouvelle séquence d'étapes (repart à 1) |
 | **I** | Texte : le curseur apparaît sous la souris, on écrit au clavier (Entrée : nouvelle ligne, Échap ou clic : terminer) |
 | **L** | Traits pleins / en tirets |
-| **M** | Roue des formes : rectangle, rond, triangle, étoile, flèche. Maintenir **M**, viser, relâcher (ou appuyer puis cliquer). Glisser pour la tracer (**Maj** : carré, cercle, forme régulière), clic : taille par défaut |
+| **M** / **clic molette** | Roue des formes : rectangle, rond, triangle, étoile, flèche. Maintenir **M**, viser, relâcher (ou appuyer puis cliquer). Glisser pour la tracer (**Maj** : carré, cercle, forme régulière), clic : taille par défaut |
 | **F** | Formes auto activées / désactivées |
 | **Maj** en relâchant | Garder ce tracé à main levée |
 | **Ctrl+Z** / **Retour arrière** | Annuler le dernier élément |

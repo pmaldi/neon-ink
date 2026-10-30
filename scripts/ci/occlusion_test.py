@@ -122,7 +122,11 @@ def check_capture(shown):
     started = time.time()
     user32.SetCursorPos(600, 400)
     time.sleep(0.2)
-    tap(0x4D)  # M : roue des formes, le rectangle est en haut
+    # Clic molette (raccourci par défaut, comme M) : roue des formes, le rectangle est en haut.
+    user32.mouse_event(0x0020, 0, 0, 0, 0)  # MIDDLEDOWN
+    time.sleep(0.05)
+    user32.mouse_event(0x0040, 0, 0, 0, 0)  # MIDDLEUP
+    time.sleep(0.4)
     click(600, 400 - 104)
     drag((200, 300), (520, 520))
     # Roue des appareils au bouton 4 maintenu : viser le routeur (en haut), relâcher, puis poser.

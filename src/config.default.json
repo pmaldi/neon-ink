@@ -1,5 +1,5 @@
 {
-  "_aide": "Configuration de NeonInk. Chaque raccourci est une touche (\"D\"), une combinaison (\"Ctrl+Z\", \"Shift+K\") ou une liste de choix ([\"X\", \"Delete\"]). Modificateurs : Ctrl, Alt, Shift. Touches spéciales : Escape, Delete, Backspace, Space, Enter, Tab, F1 à F12. Enregistrez le fichier : NeonInk le recharge tout seul. Supprimez-le pour revenir aux réglages d'origine.",
+  "_aide": "Configuration de NeonInk. Chaque raccourci est une touche (\"D\"), une combinaison (\"Ctrl+Z\", \"Shift+K\") ou une liste de choix ([\"X\", \"Delete\"]). Modificateurs : Ctrl, Alt, Shift. Touches spéciales : Escape, Delete, Backspace, Space, Enter, Tab, F1 à F12. Souris : Mouse3 (clic molette), Mouse4 et Mouse5 (boutons latéraux). Enregistrez le fichier : NeonInk le recharge tout seul. Supprimez-le pour revenir aux réglages d'origine.",
   "raccourcis": {
     "basculerDessin": "F10",
     "effacerEtQuitter": "Escape",
@@ -32,7 +32,10 @@
     "etapes": "S",
     "texte": "I",
     "tirets": "L",
-    "formes": "M",
+    "formes": [
+      "M",
+      "Mouse3"
+    ],
     "nouvelleSequence": "N",
     "formesAuto": "F",
     "tableauNoir": "Shift+K",

@@ -15,14 +15,74 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
 
 const DEFAULT: &str = include_str!("../../src/config.default.json");
 
+/// Touches ajoutées aux valeurs d'origine après coup. Une configuration existante les reçoit une
+/// seule fois (notées dans `_ajouts`), si personne d'autre ne les utilise : retirées ensuite par
+/// l'utilisateur, elles ne reviennent pas.
+const ADDED_DEFAULTS: &[(&str, &str)] = &[("formes", "Mouse3")];
+
 pub struct Config {
     current: Mutex<Value>,
 }
 
 impl Config {
     pub fn new(app: &AppHandle) -> Self {
+        if let Some(p) = path(app) {
+            add_new_defaults(&p);
+        }
         Self { current: Mutex::new(read(app)) }
     }
+}
+
+/// Ajoute à config.json les touches de `ADDED_DEFAULTS` pas encore proposées. Rend vrai si modifié.
+fn add_new_defaults(p: &std::path::Path) -> bool {
+    let Some(mut user) = std::fs::read_to_string(p).ok().and_then(|t| serde_json::from_str::<Value>(&t).ok()) else {
+        return false;
+    };
+    if !migrate(&mut user) {
+        return false;
+    }
+    serde_json::to_string_pretty(&user).ok().is_some_and(|t| std::fs::write(p, t).is_ok())
+}
+
+fn migrate(user: &mut Value) -> bool {
+    let Some(obj) = user.as_object_mut() else { return false };
+    let done: Vec<String> = obj
+        .get("_ajouts")
+        .and_then(Value::as_array)
+        .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+        .unwrap_or_default();
+    let mut changed = false;
+    for (action, combo) in ADDED_DEFAULTS {
+        let mark = format!("{action}:{combo}");
+        if done.contains(&mark) {
+            continue;
+        }
+        changed = true;
+        let keys = obj.entry("raccourcis").or_insert_with(|| json!({}));
+        let Some(keys) = keys.as_object_mut() else { continue };
+        let used = keys.values().any(|v| match v {
+            Value::String(s) => s.eq_ignore_ascii_case(combo),
+            Value::Array(list) => list.iter().any(|x| x.as_str().is_some_and(|s| s.eq_ignore_ascii_case(combo))),
+            _ => false,
+        });
+        // Une action absente du fichier reprend déjà les valeurs d'origine, nouveauté comprise.
+        if !used {
+            if let Some(current) = keys.get_mut(*action) {
+                let mut list = match current.take() {
+                    Value::Array(list) => list,
+                    Value::String(s) => vec![Value::String(s)],
+                    _ => vec![],
+                };
+                list.push(json!(combo));
+                *current = Value::Array(list);
+            }
+        }
+        let marks = obj.entry("_ajouts").or_insert_with(|| json!([]));
+        if let Some(list) = marks.as_array_mut() {
+            list.push(json!(mark));
+        }
+    }
+    changed
 }
 
 pub fn path(app: &AppHandle) -> Option<PathBuf> {
@@ -208,4 +268,29 @@ pub fn watch(app: AppHandle) {
             let _ = app.emit("config-changed", config);
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new_default_added_once() {
+        let mut user = json!({ "raccourcis": { "formes": "M", "stylo": "D" } });
+        assert!(migrate(&mut user));
+        assert_eq!(user["raccourcis"]["formes"], json!(["M", "Mouse3"]));
+        assert_eq!(user["_ajouts"], json!(["formes:Mouse3"]));
+        // Retirée ensuite par l'utilisateur : elle ne revient pas.
+        user["raccourcis"]["formes"] = json!("M");
+        assert!(!migrate(&mut user));
+        assert_eq!(user["raccourcis"]["formes"], json!("M"));
+    }
+
+    #[test]
+    fn new_default_not_stolen() {
+        let mut user = json!({ "raccourcis": { "formes": "M", "reseau.reseau": ["J", "mouse3"] } });
+        assert!(migrate(&mut user));
+        assert_eq!(user["raccourcis"]["formes"], json!("M"));
+        assert_eq!(user["raccourcis"]["reseau.reseau"], json!(["J", "mouse3"]));
+    }
 }
