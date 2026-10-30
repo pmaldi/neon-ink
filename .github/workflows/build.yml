@@ -37,6 +37,7 @@ jobs:
         run: python scripts/ci/occlusion_test.py src-tauri/target/release/NeonInk.exe --expect live --shots shots
       - name: Installation, migration, mise à jour et désinstallation
         shell: pwsh
+        timeout-minutes: 12
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

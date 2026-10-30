@@ -13,8 +13,14 @@ function Check($ok, $label) {
   if (-not $ok) { $script:failures += $label }
   "- $(if ($ok) { '✅' } else { '❌' }) $label" | Out-File -Append -Encoding utf8 $env:GITHUB_STEP_SUMMARY
 }
+# Attend la fin du programme lui-même (pas de ses descendants : l'installateur relance NeonInk), 3 minutes au plus.
 function Run($file, $arguments) {
-  $p = Start-Process -FilePath $file -ArgumentList $arguments -PassThru -Wait
+  $p = Start-Process -FilePath $file -ArgumentList $arguments -PassThru
+  if (-not $p.WaitForExit(180000)) {
+    $p | Stop-Process -Force
+    Write-Host "Délai dépassé : $file $arguments"
+    return -1
+  }
   return $p.ExitCode
 }
 function NeonInkProcesses { Get-Process -Name NeonInk, neon-ink -ErrorAction SilentlyContinue }
