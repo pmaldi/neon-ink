@@ -7,6 +7,8 @@ et le projet respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-10-30
+
 ### Ajouté
 - Papier petits carreaux (**Maj+P**) et grands carreaux Seyès (**Maj+G**), aussi dans les captures. Les formes s'aimantent au quadrillage.
 - Plugins : des fonctionnalités en plus, installées depuis l'aide (section Plugins) et absentes des installateurs. Ils se chargent au démarrage, ajoutent leurs touches à l'aide et se mettent à jour tout seuls.
@@ -114,7 +116,8 @@ et le projet respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 - Étapes numérotées reliées par des flèches (touche **S**, nouvelle séquence avec **N**).
 - Aide à l'écran (touche **H**) et prise en charge de plusieurs écrans.
 
-[Unreleased]: https://github.com/pmaldi/neon-ink/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/pmaldi/neon-ink/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/pmaldi/neon-ink/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/pmaldi/neon-ink/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/pmaldi/neon-ink/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/pmaldi/neon-ink/compare/v0.5.0...v0.6.0
