@@ -79,8 +79,10 @@ Start-Sleep 2
 NeonInkProcesses | Stop-Process -Force
 Start-Process "$programDir\NeonInk.exe"  # l'application tourne pendant le remplacement
 Start-Sleep 4
-$password = 'Neon-' + [guid]::NewGuid().ToString('N').Substring(0, 12) + '!a1'
-& net.exe user neontest $password /add | Out-Null
+# 14 caractères au plus : au-delà, « net user » pose une question et n'ajoute pas le compte.
+$password = 'Nn-' + [guid]::NewGuid().ToString('N').Substring(0, 8) + '!a1'
+& net.exe user neontest $password /add
+Check ($LASTEXITCODE -eq 0) 'Compte de test sans droits administrateur créé'
 $cred = New-Object PSCredential('neontest', (ConvertTo-SecureString $password -AsPlainText -Force))
 $out = 'C:\Users\Public\neontest-run.txt'
 $p = Start-Process cmd.exe -ArgumentList '/c', "schtasks.exe /Run /TN `"$task`" > $out 2>&1 & whoami >> $out" -Credential $cred -WorkingDirectory 'C:\Users\Public' -PassThru -WindowStyle Hidden
