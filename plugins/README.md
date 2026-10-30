@@ -48,7 +48,7 @@ puis `http://localhost:3000/src/index.html?plugins=exemple`, F10 pour dessiner.
 | `defineTool(nom, def)` | Outil. `label()` pour la barre d'état ; `down(p, e)`, `move(p, e)`, `up(p, e)`, `cancel()` pour la souris ; `preview(ctx, now)` et `cursor(ctx, p, now)` pour l'aperçu ; `busy()` vrai pendant une action en cours ; `wheel()` ouvre la roue de l'outil quand on appuie sur la touche des formes (M, clic molette) alors qu'il est actif |
 | `defineAction(nom, def)` | Raccourci `{ label, hint, key, run }` (`hint` : précision affichée sous le libellé). Il apparaît dans l'aide, onglet Plugins, se modifie comme les autres et s'enregistre dans `config.json` sous le nom `<id>.<nom>`. `key` n'est utilisée que si elle est libre |
 | `useTool(nom)`, `toolActive(nom)` | Choisir un outil du plugin, savoir s'il est actif |
-| `add(type, données)` | Ajoute un objet ; la couleur et l'épaisseur courantes sont reprises. `deps: [id, …]` : l'objet s'efface avec ceux dont il dépend |
+| `add(type, données)` | Ajoute un objet ; la couleur et l'épaisseur courantes sont reprises. Les champs `id`, `kind`, `type`, `plugin`, `born` et `dying` sont réservés à NeonInk. `deps: [id, …]` : l'objet s'efface avec ceux dont il dépend |
 | `remove(o)`, `objects(type)`, `objectAt(p, r, type)` | Effacer, lister, trouver sous un point |
 | `color`, `width`, `dashed`, `board`, `palette` | État courant et couleurs de NeonInk |
 | `draw` | Primitives néon : `neon(ctx, path, couleur, épaisseur, alpha, éclat, tirets)`, `glowDot`, `glowLine`, `badge`, `label(ctx, texte, x, y, couleur, { size, alpha })`, `path(points, fermé, lissé)` |

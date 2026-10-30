@@ -940,8 +940,11 @@ function askText({ x = innerWidth / 2, y = innerHeight / 2, value = '', placehol
   promptInput.style.left = `${Math.max(8, Math.min(innerWidth - 268, x - 130))}px`;
   promptInput.style.top = `${Math.max(8, Math.min(innerHeight - 48, y + 18))}px`;
   promptInput.hidden = false;
-  promptInput.focus();
-  promptInput.select();
+  // Après le clic en cours : ouvert pendant un `pointerdown`, le champ perdrait aussitôt le focus.
+  setTimeout(() => {
+    promptInput.focus();
+    promptInput.select();
+  });
   return new Promise((resolve) => {
     promptDone = (text) => {
       promptDone = null;

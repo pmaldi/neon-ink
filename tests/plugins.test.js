@@ -45,7 +45,8 @@ test('chaque plugin du dépôt se charge et déclare ce qu’il ajoute', async (
     }
     for (const [name, t] of Object.entries(seen.types)) {
       assert.equal(typeof t.draw, 'function', `${dir.name}.${name}`);
-      assert.equal(typeof t.hit, 'function', `${dir.name}.${name}`);
+      // Sans `hit`, l'objet échappe à la gomme (la grille isométrique, par exemple).
+      if (t.hit !== undefined) assert.equal(typeof t.hit, 'function', `${dir.name}.${name}`);
     }
   }
 });
