@@ -7,6 +7,8 @@ et le projet respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-10-30
+
 ### Modifié
 - Aide réorganisée en onglets (Général, Outils, Couleurs et fonds, Plugins) avec une recherche dans toutes les touches. Chaque plugin a sa carte, avec son installation et ses touches : l'aide reste lisible quel que soit le nombre de plugins.
 - Libellés plus clairs : « rappuyer » au lieu de « encore » pour passer à la forme ou à l'appareil suivant.
@@ -124,7 +126,8 @@ et le projet respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 - Étapes numérotées reliées par des flèches (touche **S**, nouvelle séquence avec **N**).
 - Aide à l'écran (touche **H**) et prise en charge de plusieurs écrans.
 
-[Unreleased]: https://github.com/pmaldi/neon-ink/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/pmaldi/neon-ink/compare/v0.9.1...HEAD
+[0.9.1]: https://github.com/pmaldi/neon-ink/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/pmaldi/neon-ink/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/pmaldi/neon-ink/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/pmaldi/neon-ink/compare/v0.6.0...v0.7.0
