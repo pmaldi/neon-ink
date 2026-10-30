@@ -128,3 +128,4 @@ Check ($LASTEXITCODE -ne 0) 'Tâche de mise à jour supprimée'
 Check (-not (Test-Path "$programDir\NeonInk.old")) 'Ancien exécutable de la mise à jour silencieuse supprimé'
 
 if ($failures.Count) { Write-Host "$($failures.Count) vérification(s) en échec"; exit 1 }
+exit 0
