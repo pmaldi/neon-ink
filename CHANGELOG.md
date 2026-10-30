@@ -7,6 +7,8 @@ et le projet respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+## [0.10.2] - 2026-10-30
+
 ### Corrigé
 - Le **clic molette** et **M** ouvrent la roue du mode en cours : avec l'outil réseau actif, c'est la roue des appareils, et non plus celle des formes. Les plugins peuvent fournir la roue de leur outil (`wheel()` dans `defineTool`). Le plugin réseau passe en 1.2.0.
 
@@ -140,7 +142,8 @@ et le projet respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 - Étapes numérotées reliées par des flèches (touche **S**, nouvelle séquence avec **N**).
 - Aide à l'écran (touche **H**) et prise en charge de plusieurs écrans.
 
-[Unreleased]: https://github.com/pmaldi/neon-ink/compare/v0.10.1...HEAD
+[Unreleased]: https://github.com/pmaldi/neon-ink/compare/v0.10.2...HEAD
+[0.10.2]: https://github.com/pmaldi/neon-ink/compare/v0.10.1...v0.10.2
 [0.10.1]: https://github.com/pmaldi/neon-ink/compare/v0.10.0...v0.10.1
 [0.10.0]: https://github.com/pmaldi/neon-ink/compare/v0.9.1...v0.10.0
 [0.9.1]: https://github.com/pmaldi/neon-ink/compare/v0.9.0...v0.9.1
