@@ -7,6 +7,8 @@ et le projet respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-10-30
+
 ### Modifié
 - **M** ou le **clic molette** ouvrent la roue des formes (rectangle, rond, triangle, étoile, flèche), comme **J** pour les appareils réseau : maintenir, viser, relâcher, ou appuyer puis cliquer. Les configurations existantes reçoivent le clic molette une seule fois, s'il n'est pas déjà utilisé.
 
@@ -135,7 +137,8 @@ et le projet respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 - Étapes numérotées reliées par des flèches (touche **S**, nouvelle séquence avec **N**).
 - Aide à l'écran (touche **H**) et prise en charge de plusieurs écrans.
 
-[Unreleased]: https://github.com/pmaldi/neon-ink/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/pmaldi/neon-ink/compare/v0.10.1...HEAD
+[0.10.1]: https://github.com/pmaldi/neon-ink/compare/v0.10.0...v0.10.1
 [0.10.0]: https://github.com/pmaldi/neon-ink/compare/v0.9.1...v0.10.0
 [0.9.1]: https://github.com/pmaldi/neon-ink/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/pmaldi/neon-ink/compare/v0.8.0...v0.9.0
