@@ -1,0 +1,52 @@
+name: Mesure taille et durée
+
+on:
+  push:
+    branches: ['ci/perf']
+
+jobs:
+  measure:
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [actuel, allege, allege-rapide]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: perf-${{ matrix.variant }}
+      - run: npm ci
+      - name: Variante
+        shell: bash
+        run: |
+          if [ "${{ matrix.variant }}" != actuel ]; then
+            python - <<'PY'
+          p = 'src-tauri/Cargo.toml'
+          s = open(p).read()
+          s = s.replace('tauri = { version = "2", features = ["tray-icon"] }',
+                        'tauri = { version = "2", default-features = false, features = ["wry", "compression", "common-controls-v6", "tray-icon"] }')
+          s = s.replace('opt-level = "s"', 'opt-level = "z"')
+          open(p, 'w').write(s)
+          PY
+          fi
+          if [ "${{ matrix.variant }}" = allege-rapide ]; then
+            echo "CARGO_PROFILE_RELEASE_LTO=thin" >> $GITHUB_ENV
+            echo "CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16" >> $GITHUB_ENV
+          fi
+          grep -n "tauri =\|opt-level" src-tauri/Cargo.toml
+      - name: Compilation
+        shell: bash
+        run: |
+          start=$(date +%s)
+          npx tauri build --bundles nsis
+          end=$(date +%s)
+          exe=$(stat -c %s src-tauri/target/release/NeonInk.exe)
+          setup=$(stat -c %s src-tauri/target/release/bundle/nsis/*-setup.exe)
+          echo "### ${{ matrix.variant }} : $((end-start)) s · exe $exe octets · setup $setup octets" | tee -a $GITHUB_STEP_SUMMARY
