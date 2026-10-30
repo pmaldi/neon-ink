@@ -49,7 +49,7 @@ export function createPluginHost(host) {
         own.tools.push(key);
         return key;
       },
-      /** Raccourci : { label, key (touche par défaut), run() }. Il apparaît dans l'aide. */
+      /** Raccourci : { label, hint (précision facultative), key (touche par défaut), run() }. Il apparaît dans l'aide. */
       defineAction(action, def) {
         actions.set(name(action), { ...def, plugin: id });
         own.actions.push(name(action));
@@ -130,13 +130,6 @@ export function createPluginHost(host) {
       own.types.forEach((k) => types.delete(k));
       own.actions.forEach((k) => actions.delete(k));
       loaded.delete(id);
-    },
-
-    /** Sections de l'aide : une par plugin chargé. */
-    helpSections() {
-      return [...loaded.values()]
-        .filter((p) => p.actions.length)
-        .map((p) => [`Plugin ${p.manifest.nom ?? p.manifest.id}`, p.actions.map((a) => [a, actions.get(a).label])]);
     },
   };
 }

@@ -2,7 +2,7 @@
 // (routeur, switch, serveur, PC, pare-feu, Internet, borne Wi-Fi) reliés par des liens
 // où circulent des paquets.
 //
-// Touche J (par défaut) : outil Réseau ; encore J : appareil suivant.
+// Touche J (par défaut) : outil Réseau ; rappuyer sur J : appareil suivant.
 //  - clic dans le vide : pose l'appareil choisi (aimanté au quadrillage sur papier à carreaux) ;
 //  - glisser d'un appareil à un autre : les relie ;
 //  - glisser d'un appareil vers le vide : pose un nouvel appareil, déjà relié.
@@ -12,7 +12,7 @@ export const manifest = {
   id: 'reseau',
   nom: 'Réseau',
   description: 'Plans réseau : routeur, switch, serveur, PC, pare-feu, Internet et Wi-Fi, reliés par des liens animés.',
-  version: '1.0.0',
+  version: '1.0.1',
   api: 1,
 };
 
@@ -311,7 +311,8 @@ export function activate(api) {
   });
 
   api.defineAction('reseau', {
-    label: 'Réseau : poser un appareil, glisser pour relier (encore = appareil suivant)',
+    label: 'Outil Réseau',
+    hint: 'Rappuyer : appareil suivant · glisser d’un appareil à l’autre : relier',
     key: 'J',
     run() {
       if (api.toolActive('reseau')) current = (current + 1) % DEVICES.length;
@@ -320,7 +321,7 @@ export function activate(api) {
   });
 
   api.defineAction('animation', {
-    label: 'Réseau : animations en pause / en marche',
+    label: 'Animations en pause / en marche',
     key: 'Shift+J',
     run() {
       paused = !paused;

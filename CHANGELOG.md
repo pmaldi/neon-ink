@@ -7,6 +7,14 @@ et le projet respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Modifié
+- Aide réorganisée en onglets (Général, Outils, Couleurs et fonds, Plugins) avec une recherche dans toutes les touches. Chaque plugin a sa carte, avec son installation et ses touches : l'aide reste lisible quel que soit le nombre de plugins.
+- Libellés plus clairs : « rappuyer » au lieu de « encore » pour passer à la forme ou à l'appareil suivant.
+- Plugin Réseau 1.0.1 : libellés de l'aide raccourcis.
+
+### Corrigé
+- Après une mise à jour, NeonInk redémarre à coup sûr : la nouvelle version attend que l'ancienne soit vraiment fermée.
+
 ## [0.9.0] - 2026-10-30
 
 ### Ajouté

@@ -204,6 +204,72 @@ fn silent_install(app: &AppHandle, update: &Update, exe: &Path, dir: &Path, manu
     Ok(true)
 }
 
+/// Attend que les autres NeonInk de la session soient fermés (15 secondes au plus).
+#[cfg(windows)]
+pub fn wait_for_previous_version() {
+    use windows_sys::Win32::Foundation::{CloseHandle, INVALID_HANDLE_VALUE};
+    use windows_sys::Win32::System::Diagnostics::ToolHelp::{
+        CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS,
+    };
+    use windows_sys::Win32::System::RemoteDesktop::ProcessIdToSessionId;
+    use windows_sys::Win32::System::Threading::{OpenProcess, WaitForSingleObject, PROCESS_SYNCHRONIZE};
+
+    let me = std::process::id();
+    let session = |pid: u32| {
+        let mut s = u32::MAX;
+        unsafe { ProcessIdToSessionId(pid, &mut s) };
+        s
+    };
+    let mine = session(me);
+    let name: Vec<u16> = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_lowercase()))
+        .unwrap_or_else(|| "neonink.exe".into())
+        .encode_utf16()
+        .collect();
+
+    let mut others = Vec::new();
+    unsafe {
+        let snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+        if snap == INVALID_HANDLE_VALUE {
+            std::thread::sleep(Duration::from_millis(1500));
+            return;
+        }
+        let mut entry: PROCESSENTRY32W = std::mem::zeroed();
+        entry.dwSize = std::mem::size_of::<PROCESSENTRY32W>() as u32;
+        let mut ok = Process32FirstW(snap, &mut entry) != 0;
+        while ok {
+            let len = entry.szExeFile.iter().position(|&c| c == 0).unwrap_or(entry.szExeFile.len());
+            let exe = String::from_utf16_lossy(&entry.szExeFile[..len]).to_lowercase();
+            if entry.th32ProcessID != me && exe.encode_utf16().eq(name.iter().copied()) && session(entry.th32ProcessID) == mine {
+                others.push(entry.th32ProcessID);
+            }
+            ok = Process32NextW(snap, &mut entry) != 0;
+        }
+        CloseHandle(snap);
+    }
+
+    let deadline = Instant::now() + Duration::from_secs(15);
+    for pid in others {
+        let handle = unsafe { OpenProcess(PROCESS_SYNCHRONIZE, 0, pid) };
+        if handle.is_null() {
+            continue; // déjà fermé
+        }
+        let left = deadline.saturating_duration_since(Instant::now()).as_millis() as u32;
+        unsafe {
+            WaitForSingleObject(handle, left);
+            CloseHandle(handle);
+        }
+    }
+    // Laisse Windows libérer l'icône de la zone de notification et le raccourci global.
+    std::thread::sleep(Duration::from_millis(300));
+}
+
+#[cfg(not(windows))]
+pub fn wait_for_previous_version() {
+    std::thread::sleep(Duration::from_millis(1500));
+}
+
 fn old_path(exe: &Path) -> PathBuf {
     exe.with_extension("old")
 }

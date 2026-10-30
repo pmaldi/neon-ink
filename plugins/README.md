@@ -2,7 +2,7 @@
 
 Les plugins ajoutent des fonctionnalités sans alourdir NeonInk : ils ne font pas partie des
 installateurs. Chacun est publié avec les releases (`plugin-<id>.js`, plus le catalogue
-`plugins.json`) et s'installe depuis l'application : aide (**H**) › section **Plugins** ›
+`plugins.json`) et s'installe depuis l'application : aide (**H**) › onglet **Plugins** ›
 **Installer**. Ils sont rangés dans `%APPDATA%\com.patrice.neonink\plugins`, se chargent au
 démarrage et se mettent à jour d'eux-mêmes.
 
@@ -46,7 +46,7 @@ puis `http://localhost:3000/src/index.html?plugins=exemple`, F10 pour dessiner.
 |---|---|
 | `defineObject(type, def)` | Type d'objet dessiné. `def.draw(ctx, o, f)` dessine `o` ; `f` = `{ now, age, intro, life }` : `intro` va de 0 à 1 à l'apparition, `life` de 1 à 0 quand l'objet s'efface. `def.hit(o, p, r)` : vrai si la gomme (disque `p`, rayon `r`) le touche. Facultatif : `center(o)` (étincelles à l'effacement), `animated` (booléen ou fonction : redessiné à chaque image), `layer` (ordre d'affichage) |
 | `defineTool(nom, def)` | Outil. `label()` pour la barre d'état ; `down(p, e)`, `move(p, e)`, `up(p, e)`, `cancel()` pour la souris ; `preview(ctx, now)` et `cursor(ctx, p, now)` pour l'aperçu ; `busy()` vrai pendant une action en cours |
-| `defineAction(nom, def)` | Raccourci `{ label, key, run }`. Il apparaît dans l'aide, se modifie comme les autres et s'enregistre dans `config.json` sous le nom `<id>.<nom>`. `key` n'est utilisée que si elle est libre |
+| `defineAction(nom, def)` | Raccourci `{ label, hint, key, run }` (`hint` : précision affichée sous le libellé). Il apparaît dans l'aide, onglet Plugins, se modifie comme les autres et s'enregistre dans `config.json` sous le nom `<id>.<nom>`. `key` n'est utilisée que si elle est libre |
 | `useTool(nom)`, `toolActive(nom)` | Choisir un outil du plugin, savoir s'il est actif |
 | `add(type, données)` | Ajoute un objet ; la couleur et l'épaisseur courantes sont reprises. `deps: [id, …]` : l'objet s'efface avec ceux dont il dépend |
 | `remove(o)`, `objects(type)`, `objectAt(p, r, type)` | Effacer, lister, trouver sous un point |

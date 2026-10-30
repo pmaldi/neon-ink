@@ -191,9 +191,10 @@ fn main() {
         std::process::exit(code);
     }
 
-    // Après une mise à jour portable, l'ancienne version doit d'abord se fermer.
+    // Après une mise à jour, l'ancienne version doit d'abord se fermer : sinon la protection
+    // « une seule instance » croirait NeonInk déjà lancé et fermerait la nouvelle version.
     if std::env::args().any(|a| a == updater::AFTER_UPDATE_ARG) {
-        std::thread::sleep(std::time::Duration::from_millis(1500));
+        updater::wait_for_previous_version();
     }
 
     tauri::Builder::default()

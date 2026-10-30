@@ -997,6 +997,17 @@ function onKey(e) {
     if (!['Shift', 'Control', 'Alt', 'Meta', 'AltGraph', 'CapsLock', 'Dead'].includes(e.key)) finishCapture(eventCombo(e));
     return;
   }
+  if (document.activeElement === $('help-search')) {
+    // La frappe va dans le champ de recherche ; Échap le vide, puis le quitte.
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      if (helpQuery) {
+        e.target.value = helpQuery = '';
+        renderHelp();
+      } else e.target.blur();
+    }
+    return;
+  }
   if (state.editing) {
     // La frappe va dans la zone de texte ; Échap termine.
     if (e.key === 'Escape') {
@@ -1027,42 +1038,65 @@ function onKey(e) {
 
 // ───────────────────────── Aide ─────────────────────────
 
-const HELP_SECTIONS = [
-  ['Général', [
-    ['basculerDessin', 'Dessin on/off (masque et réaffiche les tracés)'],
-    ['effacerEtQuitter', 'Tout effacer et quitter le dessin'],
-    ['annuler', 'Annuler le dernier élément'],
-    ['toutEffacer', 'Tout effacer'],
-    ['epaisseurPlus', 'Trait plus épais (ou molette)'],
-    ['epaisseurMoins', 'Trait plus fin'],
-    ['capture', 'Capture d’écran avec les dessins (Images › NeonInk)'],
-    ['dossierCaptures', 'Ouvrir le dossier des captures'],
-    ['aide', 'Afficher / masquer cette aide'],
-  ]],
-  ['Outils', [
-    ['stylo', 'Stylo'],
-    ['gomme', 'Gomme : trait entier (ou clic droit)'],
-    ['gommePrecise', 'Gomme précise : une partie du trait'],
-    ['etapes', 'Étapes : clic = pastille, glisser = trait'],
-    ['texte', 'Texte : écrire au clavier (Échap pour finir)'],
-    ['formes', 'Formes : rectangle, rond, triangle, étoile, flèche (encore = suivante, Maj = régulière)'],
-    ['tirets', 'Trait plein / en tirets'],
-    ['nouvelleSequence', 'Nouvelle séquence d’étapes'],
-    ['formesAuto', 'Formes auto on/off (Maj en relâchant : main levée)'],
-    ['tableauNoir', 'Tableau noir (même touche : retour)'],
-    ['tableauBlanc', 'Tableau blanc (même touche : retour)'],
-    ['petitsCarreaux', 'Papier petits carreaux (même touche : retour)'],
-    ['grandsCarreaux', 'Papier grands carreaux, Seyès (même touche : retour)'],
-  ]],
-  ['Couleurs', Object.entries(COLOR_ACTIONS).map(([action, key]) => [action, PALETTE[key].name, key === 'k' ? '#555566' : PALETTE[key].hex])],
+// Aide en onglets. Chaque ligne : [action, libellé, précision facultative].
+const HELP_TABS = [
+  { id: 'general', title: 'Général', groups: [
+    ['Dessin', [
+      ['basculerDessin', 'Dessin on / off', 'Masque les tracés, les réaffiche ensuite'],
+      ['effacerEtQuitter', 'Tout effacer et quitter le dessin'],
+      ['annuler', 'Annuler le dernier élément'],
+      ['toutEffacer', 'Tout effacer'],
+    ]],
+    ['Trait et fenêtre', [
+      ['epaisseurPlus', 'Trait plus épais', 'Ou la molette de la souris'],
+      ['epaisseurMoins', 'Trait plus fin'],
+      ['capture', 'Capture d’écran avec les dessins', 'Enregistrée dans Images › NeonInk et copiée'],
+      ['dossierCaptures', 'Ouvrir le dossier des captures'],
+      ['aide', 'Afficher / masquer cette aide'],
+    ]],
+  ] },
+  { id: 'outils', title: 'Outils', groups: [
+    ['Tracer', [
+      ['stylo', 'Stylo'],
+      ['formes', 'Formes toutes faites', 'Rappuyer : forme suivante · Maj : forme régulière'],
+      ['texte', 'Texte au clavier', 'Échap ou un clic pour terminer'],
+      ['tirets', 'Trait plein / en tirets'],
+      ['formesAuto', 'Reconnaissance des formes on / off', 'Maj en relâchant : garder le tracé à main levée'],
+    ]],
+    ['Effacer et numéroter', [
+      ['gomme', 'Gomme : trait entier', 'Ou le clic droit maintenu'],
+      ['gommePrecise', 'Gomme précise : une partie du trait'],
+      ['etapes', 'Étapes numérotées', 'Clic : pastille · glisser : trait'],
+      ['nouvelleSequence', 'Nouvelle séquence d’étapes'],
+    ]],
+  ] },
+  { id: 'couleurs', title: 'Couleurs et fonds', groups: [
+    ['Couleurs', Object.entries(COLOR_ACTIONS).map(([action, key]) => [action, PALETTE[key].name, null, key === 'k' ? '#555566' : PALETTE[key].hex]), 'colors'],
+    ['Fonds', [
+      ['tableauNoir', 'Tableau noir'],
+      ['tableauBlanc', 'Tableau blanc'],
+      ['petitsCarreaux', 'Papier petits carreaux'],
+      ['grandsCarreaux', 'Papier grands carreaux (Seyès)'],
+      [null, 'La même touche ramène à l’écran'],
+    ]],
+  ] },
+  { id: 'plugins', title: 'Plugins' },
 ];
 
 const keysOf = (action) => (keymap.byAction[action] ?? []).map(prettyCombo).join(' · ') || '—';
-const helpSections = () => [...HELP_SECTIONS, ...plugins.helpSections()];
-function actionLabel(action) {
-  for (const [, entries] of helpSections()) for (const [a, label] of entries) if (a === action) return label.split(' (')[0];
-  return action;
+/** Lignes des actions d'un plugin chargé. */
+const pluginRows = (id) => [...plugins.actions].filter(([, d]) => d.plugin === id).map(([a, d]) => [a, d.label, d.hint]);
+/** Toutes les lignes, pour la recherche et les messages : [titre de l'onglet, ligne]. */
+function allRows() {
+  const rows = [];
+  for (const tab of HELP_TABS) for (const [, entries] of tab.groups ?? []) for (const e of entries) if (e[0]) rows.push([tab.title, e]);
+  for (const [id, p] of plugins.loaded) for (const e of pluginRows(id)) rows.push([p.manifest.nom ?? id, e]);
+  return rows;
 }
+function actionLabel(action) {
+  return allRows().find(([, e]) => e[0] === action)?.[1][1] ?? action;
+}
+
 // Une action qui doit toujours garder au moins une touche.
 const REQUIRED = new Set(['basculerDessin', 'aide']);
 
@@ -1076,32 +1110,93 @@ function keyButton(text, action, index) {
   return btn;
 }
 
-function renderHelp() {
-  const cols = $('help-cols');
-  cols.replaceChildren();
-  let row = 0;
-  for (const [title, entries] of helpSections()) {
-    const section = document.createElement('section');
-    const h2 = document.createElement('h2');
-    h2.textContent = title;
-    const dl = document.createElement('dl');
-    if (title === 'Couleurs') dl.className = 'colors';
-    for (const [action, label, swatch] of entries) {
-      const dt = document.createElement('dt');
-      const dd = document.createElement('dd');
+let helpTab = 'general', helpQuery = '';
+try {
+  helpTab = localStorage.getItem('helpTab') || helpTab;
+} catch {}
+const fold = (t) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+
+/** Liste « touches → action ». `rowIndex` donne le décalage de l'apparition en cascade. */
+function shortcutList(entries, cls, rowIndex) {
+  const dl = el('dl', cls);
+  for (const [action, label, hint, swatch] of entries) {
+    const dt = el('dt');
+    const dd = el('dd', null, label);
+    if (action) {
       (keymap.byAction[action] ?? []).forEach((combo, i) => dt.append(keyButton(prettyCombo(combo), action, i)));
       dt.append(keyButton('+', action, -1));
-      dd.textContent = label;
-      if (swatch) dd.style.setProperty('--k', swatch);
-      for (const el of [dt, dd]) el.style.setProperty('--i', row);
-      row++;
-      dl.append(dt, dd);
     }
-    section.append(h2, dl);
-    cols.append(section);
+    if (hint) dd.append(el('span', 'hint', hint));
+    if (swatch) dd.style.setProperty('--k', swatch);
+    for (const e of [dt, dd]) e.style.setProperty('--i', rowIndex.n);
+    rowIndex.n++;
+    dl.append(dt, dd);
+  }
+  return dl;
+}
+
+function renderHelp() {
+  const tabs = $('help-tabs');
+  tabs.replaceChildren();
+  for (const tab of HELP_TABS) {
+    const b = el('button', null, tab.title);
+    b.type = 'button';
+    b.dataset.tab = tab.id;
+    b.setAttribute('role', 'tab');
+    b.setAttribute('aria-selected', String(!helpQuery && tab.id === helpTab));
+    if (tab.id === 'plugins' && plugins.loaded.size) b.append(el('span', 'count', plugins.loaded.size));
+    tabs.append(b);
+  }
+
+  const body = $('help-body');
+  body.replaceChildren();
+  const rowIndex = { n: 0 };
+  const group = (title, entries, cls) => {
+    const section = el('section');
+    section.append(el('h2', null, title), shortcutList(entries, cls, rowIndex));
+    body.append(section);
+  };
+
+  if (helpQuery) {
+    // Recherche dans tous les onglets et tous les plugins, par libellé ou par touche.
+    const q = fold(helpQuery);
+    const found = new Map();
+    for (const [where, e] of allRows()) {
+      const text = fold([e[1], e[2] ?? '', keysOf(e[0])].join(' '));
+      if (text.includes(q)) found.set(where, [...(found.get(where) ?? []), e]);
+    }
+    for (const [where, entries] of found) group(where, entries);
+    if (!found.size) body.append(el('p', 'help-empty', `Aucune action ne correspond à « ${helpQuery} »`));
+  } else if (helpTab === 'plugins') {
+    renderPluginCards(body, rowIndex);
+  } else {
+    const tab = HELP_TABS.find((t) => t.id === helpTab) ?? HELP_TABS[0];
+    for (const [title, entries, cls] of tab.groups) group(title, entries, cls);
   }
   $('hud-hint').textContent = `${keysOf('aide').split(' · ')[0]} aide · ${keysOf('basculerDessin')} masquer · ${keysOf('effacerEtQuitter')} effacer`;
 }
+
+function showHelpTab(id) {
+  helpTab = id;
+  helpQuery = '';
+  $('help-search').value = '';
+  try {
+    localStorage.setItem('helpTab', id);
+  } catch {}
+  renderHelp();
+}
+
+$('help-search').addEventListener('input', (e) => {
+  helpQuery = e.target.value.trim();
+  renderHelp();
+});
 
 // ───────────────────────── Modifier les touches depuis l'aide ─────────────────────────
 
@@ -1192,6 +1287,12 @@ async function saveShortcuts(shortcuts, message, command = 'save_shortcuts') {
 }
 
 $('help').addEventListener('click', (e) => {
+  const tab = e.target.closest('button[data-tab]');
+  if (tab) {
+    cancelCapture();
+    showHelpTab(tab.dataset.tab);
+    return;
+  }
   const op = e.target.closest('button[data-op]');
   if (op) {
     pluginOp(op.dataset.op, op.dataset.plugin);
@@ -1294,47 +1395,41 @@ async function updatePlugins() {
 
 const sizeLabel = (n) => (n ? ` · ${Math.max(1, Math.round(n / 1024))} Ko` : '');
 
-function renderPluginPanel() {
-  const box = $('help-plugins');
-  box.replaceChildren();
-  const h2 = document.createElement('h2');
-  h2.textContent = 'Plugins';
-  box.append(h2);
-  const rows = new Map();
-  for (const e of pluginState.catalog ?? []) rows.set(e.id, { entry: e });
-  for (const [id, m] of pluginState.installed) rows.set(id, { ...rows.get(id), entry: rows.get(id)?.entry ?? m, mine: m });
-  for (const { entry, mine } of rows.values()) {
-    const row = document.createElement('div');
-    row.className = 'plugin';
-    const name = document.createElement('b');
-    name.textContent = entry.nom ?? entry.id;
-    const info = document.createElement('span');
+/** Onglet Plugins : une carte par plugin (catalogue et installés), avec ses touches. */
+function renderPluginCards(body, rowIndex) {
+  const cards = new Map();
+  for (const e of pluginState.catalog ?? []) cards.set(e.id, { entry: e });
+  for (const [id, m] of pluginState.installed) cards.set(id, { entry: cards.get(id)?.entry ?? m, mine: m });
+  for (const { entry, mine } of cards.values()) {
+    const card = el('article', mine ? 'plugin-card installed' : 'plugin-card');
+    const head = el('header');
     const newer = mine && entry.version && compareVersions(entry.version, mine.version ?? '0') > 0;
-    info.innerHTML = '';
-    info.append(entry.description ?? '');
-    const meta = document.createElement('span');
-    meta.className = 'muted';
-    meta.textContent = ` v${(mine ?? entry).version ?? '?'}${sizeLabel(entry.taille)}${mine ? ' · installé' : ''}${newer ? ` · v${entry.version} au prochain démarrage` : ''}`;
-    info.append(meta);
-    row.append(name, info);
+    head.append(
+      el('b', null, entry.nom ?? entry.id),
+      el('span', 'muted', `v${(mine ?? entry).version ?? '?'}${sizeLabel(entry.taille)}${mine ? ' · installé' : ''}${newer ? ` · v${entry.version} au prochain démarrage` : ''}`),
+    );
     if (tauri) {
-      const button = document.createElement('button');
+      const button = el('button', null, pluginState.busy === entry.id ? '…' : mine ? 'Retirer' : 'Installer');
       button.type = 'button';
       button.dataset.plugin = entry.id;
       button.dataset.op = mine ? 'remove' : 'install';
-      button.textContent = pluginState.busy === entry.id ? '…' : mine ? 'Retirer' : 'Installer';
       button.disabled = !!pluginState.busy;
-      row.append(button);
+      head.append(button);
     }
-    box.append(row);
+    card.append(head, el('p', null, entry.description ?? ''));
+    const rows = mine ? pluginRows(entry.id) : [];
+    if (rows.length) card.append(shortcutList(rows, null, rowIndex));
+    body.append(card);
   }
-  const note = document.createElement('p');
-  note.className = 'muted';
-  note.textContent = !tauri
+  const note = !tauri
     ? 'Navigateur : ajoute ?plugins=reseau à l’adresse pour essayer un plugin du dossier plugins/.'
     : pluginState.message || (pluginState.catalog ? '' : 'Recherche des plugins disponibles…');
-  if (note.textContent) box.append(note);
+  if (note) body.append(el('p', 'plugin-note', note));
+  if (!cards.size && !note) body.append(el('p', 'help-empty', 'Aucun plugin pour le moment.'));
 }
+
+/** L'état des plugins a changé : l'aide est redessinée si elle les montre. */
+const renderPluginPanel = () => renderHelp();
 
 let catalogAt = 0;
 

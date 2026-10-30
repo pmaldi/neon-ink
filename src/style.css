@@ -199,7 +199,7 @@ body.drawing #hud { opacity: 1; transform: none; }
 @keyframes spin { to { --spin: 360deg; } }
 
 #help h1 {
-  margin: 0 0 18px;
+  margin: 0;
   font-size: 22px;
   letter-spacing: 0.08em;
 }
@@ -215,10 +215,57 @@ body.drawing #hud { opacity: 1; transform: none; }
   48%, 100% { opacity: 1; }
 }
 
-#help .cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px; }
+/* En-tête : titre, onglets, recherche */
+.help-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; margin-bottom: 16px; }
+.help-tabs { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }
+.help-tabs button, #help-search {
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--text);
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+}
+.help-tabs button { padding: 5px 13px; cursor: pointer; transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease; }
+.help-tabs button:hover { border-color: color-mix(in srgb, var(--c) 60%, transparent); }
+.help-tabs button[aria-selected="true"] {
+  color: #fff;
+  border-color: var(--c);
+  background: color-mix(in srgb, var(--c) 20%, transparent);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--c) 45%, transparent);
+}
+.help-tabs .count {
+  display: inline-block;
+  min-width: 16px;
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 999px;
+  font-size: 11px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.14);
+}
+#help-search { width: 200px; padding: 5px 13px; outline: none; }
+#help-search:focus { border-color: var(--c); box-shadow: 0 0 10px color-mix(in srgb, var(--c) 45%, transparent); }
+
+/* Contenu de l'onglet : groupes sur deux colonnes, hauteur stable d'un onglet à l'autre */
+.help-body {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 22px 34px;
+  align-content: start;
+  min-height: min(420px, calc(100vh - 220px));
+}
 #help h2 { margin: 0 0 10px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); }
-#help dl { margin: 0; display: grid; grid-template-columns: 112px 1fr; gap: 7px 12px; align-items: baseline; font-size: 13px; }
+#help dl { margin: 0; display: grid; grid-template-columns: 118px 1fr; gap: 9px 14px; align-items: baseline; font-size: 13px; }
 #help dt { justify-self: start; display: flex; flex-wrap: wrap; gap: 4px; }
+#help dd .hint { display: block; margin-top: 2px; font-size: 11.5px; color: var(--muted); }
+#help dl.colors { grid-template-columns: 64px 1fr 64px 1fr; }
+/* Changement d'onglet : le contenu glisse en place. */
+.help-body > * { animation: tab-in 280ms cubic-bezier(0.2, 1, 0.4, 1) both; }
+.help-body > :nth-child(2) { animation-delay: 50ms; }
+.help-body > :nth-child(n + 3) { animation-delay: 90ms; }
+@keyframes tab-in { from { opacity: 0; transform: translateY(8px); } }
+.help-empty { grid-column: 1 / -1; color: var(--muted); font-size: 13px; text-align: center; padding: 40px 0; }
 
 /* Touches cliquables : clic pour changer, « + » pour ajouter, clic droit pour retirer. */
 .key {
@@ -275,29 +322,31 @@ dt:hover .key.add, .key.add:focus-visible { opacity: 1; }
 #help.show .colors dd::before { animation: pulse 1.8s ease-in-out infinite; animation-delay: calc(var(--i, 0) * -170ms); }
 @keyframes pulse { 50% { box-shadow: 0 0 2px var(--k); transform: scale(0.8); } }
 
-.help-plugins { margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.08); }
-.help-plugins h2 { margin: 0 0 8px; }
-.help-plugins .plugin {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 4px 12px;
-  padding: 6px 0;
-  font-size: 12.5px;
+/* Onglet Plugins : une carte par plugin, avec ses touches */
+.plugin-card {
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
 }
-.help-plugins .plugin b { color: #fff; }
-.help-plugins .plugin .muted, .help-plugins > .muted { color: var(--muted); font-size: 12px; }
-.help-plugins .plugin button {
+.plugin-card.installed { border-color: color-mix(in srgb, var(--c) 45%, transparent); }
+.plugin-card header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+.plugin-card header b { font-size: 15px; color: #fff; }
+.plugin-card header .muted { flex: 1; font-size: 11.5px; color: var(--muted); }
+.plugin-card p { margin: 0 0 10px; font-size: 12.5px; color: #cfd3ea; }
+.plugin-card button[data-op] {
   font: inherit;
+  font-size: 12px;
   color: var(--text);
-  padding: 4px 12px;
+  padding: 3px 12px;
   border-radius: 999px;
   border: 1px solid color-mix(in srgb, var(--c) 60%, transparent);
   background: rgba(255, 255, 255, 0.06);
   cursor: pointer;
 }
-.help-plugins .plugin button:hover { box-shadow: 0 0 10px color-mix(in srgb, var(--c) 50%, transparent); }
-.help-plugins .plugin button:disabled { opacity: 0.5; cursor: progress; }
+.plugin-card button[data-op]:hover { box-shadow: 0 0 10px color-mix(in srgb, var(--c) 50%, transparent); }
+.plugin-card button[data-op]:disabled { opacity: 0.5; cursor: progress; }
+.plugin-note { grid-column: 1 / -1; margin: 0; font-size: 12px; color: var(--muted); }
 
 .help-status { min-height: 18px; margin: 14px 0 0; font-size: 12.5px; text-align: center; color: #fff; text-shadow: 0 0 10px var(--c); }
 .help-foot {

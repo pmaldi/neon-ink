@@ -29,9 +29,12 @@
 
   <div id="help">
     <div class="help-panel">
-      <h1><span class="neon-word">NeonInk</span></h1>
-      <div class="cols" id="help-cols"></div>
-      <div class="help-plugins" id="help-plugins"></div>
+      <header class="help-head">
+        <h1><span class="neon-word">NeonInk</span></h1>
+        <nav class="help-tabs" id="help-tabs" role="tablist" aria-label="Rubriques de l’aide"></nav>
+        <input id="help-search" type="search" placeholder="Rechercher…" title="Rechercher dans tous les onglets et les plugins" autocomplete="off" spellcheck="false" />
+      </header>
+      <div class="help-body" id="help-body"></div>
       <p class="help-status" id="help-status" aria-live="polite"></p>
       <div class="help-foot">
         <span>Clic sur une touche pour la changer · <b>+</b> pour en ajouter une · clic droit pour la retirer</span>

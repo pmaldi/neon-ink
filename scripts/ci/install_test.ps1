@@ -104,6 +104,17 @@ Set-ItemProperty 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Neon
 $server | Stop-Process -Force
 & net.exe user neontest /delete | Out-Null
 
+# 3 bis. Relance après une mise à jour : la nouvelle version attend la vraie fermeture de l'ancienne,
+# même lente, au lieu de lui passer la main (protection « une seule instance ») et de se fermer.
+NeonInkProcesses | Stop-Process -Force
+$old = Start-Process "$programDir\NeonInk.exe" -PassThru
+Start-Sleep 4
+$fresh = Start-Process "$programDir\NeonInk.exe" -ArgumentList '--after-update' -PassThru
+Start-Sleep 3   # l'ancienne version tarde à se fermer
+$old | Stop-Process -Force
+Start-Sleep 5
+Check ($null -ne (Get-Process -Id $fresh.Id -ErrorAction SilentlyContinue)) 'Nouvelle version toujours lancée après une fermeture lente de l''ancienne'
+
 # 4. Mise à jour passive pendant que l'application tourne, avec relance
 NeonInkProcesses | Stop-Process -Force
 Start-Process "$programDir\NeonInk.exe"
