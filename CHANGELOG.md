@@ -7,6 +7,8 @@ et le projet respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-30
+
 ### Ajouté
 - Les raccourcis se changent directement dans l'aide : clic sur une touche puis appui sur la nouvelle, **+** pour en ajouter une, clic droit pour la retirer, bouton « Touches d'origine ». Le raccourci global (F10) aussi.
 - Menu de l'icône › « Raccourcis clavier… » ouvre cette aide.
@@ -79,7 +81,8 @@ et le projet respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 - Étapes numérotées reliées par des flèches (touche **S**, nouvelle séquence avec **N**).
 - Aide à l'écran (touche **H**) et prise en charge de plusieurs écrans.
 
-[Unreleased]: https://github.com/pmaldi/neon-ink/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/pmaldi/neon-ink/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/pmaldi/neon-ink/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/pmaldi/neon-ink/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/pmaldi/neon-ink/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/pmaldi/neon-ink/compare/v0.2.0...v0.3.0
