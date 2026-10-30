@@ -7,6 +7,8 @@ et le projet respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-30
+
 ### Ajouté
 - Capture d'écran avec les dessins (**Ctrl+S**) : l'écran et les tracés sont enregistrés en PNG dans Images › NeonInk et copiés dans le presse-papiers. La barre d'état et le liseré n'y figurent pas. **Ctrl+Maj+S** ouvre le dossier.
 - Outil Formes (**M**) : rectangle, rond, triangle, étoile et flèche posés d'un glisser, sans les dessiner. **M** de nouveau passe à la forme suivante, **Maj** donne un carré, un cercle ou une forme régulière, un simple clic pose une forme de taille moyenne.
@@ -98,7 +100,8 @@ et le projet respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 - Étapes numérotées reliées par des flèches (touche **S**, nouvelle séquence avec **N**).
 - Aide à l'écran (touche **H**) et prise en charge de plusieurs écrans.
 
-[Unreleased]: https://github.com/pmaldi/neon-ink/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/pmaldi/neon-ink/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/pmaldi/neon-ink/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/pmaldi/neon-ink/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/pmaldi/neon-ink/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/pmaldi/neon-ink/compare/v0.3.1...v0.4.0
