@@ -929,7 +929,7 @@ const promptInput = $('prompt-input');
 let promptDone = null;
 
 /**
- * Petit champ de saisie néon près de (x, y). Rend le texte (Entrée, ou clic ailleurs) ou null (Échap, champ vide).
+ * Petit champ de saisie néon près de (x, y). Rend le texte (Entrée : éventuellement vide ; clic ailleurs : null si vide) ou null (Échap).
  * Une seule saisie à la fois : en ouvrir une autre annule la précédente.
  */
 function askText({ x = innerWidth / 2, y = innerHeight / 2, value = '', placeholder = '' } = {}) {
