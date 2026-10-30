@@ -7,6 +7,8 @@ et le projet respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-30
+
 ### Modifié
 - Mises à jour vraiment silencieuses pour la version installée : plus de demande d'autorisation administrateur ni d'installateur. Une tâche système créée à l'installation remplace l'exécutable, puis NeonInk redémarre en une seconde quand il ne sert pas. Les installations précédentes demandent l'autorisation une dernière fois pour passer à cette version.
 
@@ -103,7 +105,8 @@ et le projet respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 - Étapes numérotées reliées par des flèches (touche **S**, nouvelle séquence avec **N**).
 - Aide à l'écran (touche **H**) et prise en charge de plusieurs écrans.
 
-[Unreleased]: https://github.com/pmaldi/neon-ink/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/pmaldi/neon-ink/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/pmaldi/neon-ink/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/pmaldi/neon-ink/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/pmaldi/neon-ink/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/pmaldi/neon-ink/compare/v0.4.0...v0.5.0
