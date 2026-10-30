@@ -57,16 +57,30 @@ export function buildPath(pts, closed, smooth) {
   return p;
 }
 
+/** Motif des traits en tirets, proportionnel à l'épaisseur d'origine du trait. */
+export const dashPattern = (width) => [width * 2.4 + 6, width * 1.8 + 6];
+
+/**
+ * Applique les tirets : `dash` = { width, offset } (offset = distance du début du tracé
+ * dessiné depuis le début du trait, pour que les tirets restent à la même place).
+ */
+function applyDash(ctx, dash) {
+  if (!dash) return;
+  ctx.setLineDash(dashPattern(dash.width));
+  ctx.lineDashOffset = dash.offset ?? 0;
+}
+
 /**
  * Trait néon en trois passes : halo large, corps coloré, cœur presque blanc.
  * `boost` (0..1) surexpose le trait (flash d'apparition).
  */
-export function neon(ctx, path, color, width, alpha = 1, boost = 0) {
+export function neon(ctx, path, color, width, alpha = 1, boost = 0, dash = null) {
   if (alpha <= 0) return;
   ctx.save();
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   ctx.globalAlpha = alpha;
+  applyDash(ctx, dash);
 
   ctx.shadowColor = color.glow;
   ctx.shadowBlur = width * (3.2 + boost * 3);
@@ -91,9 +105,10 @@ function mixCore(color, boost) {
 }
 
 /** Surbrillance additive (comète, pointe chaude). */
-export function glowLine(ctx, path, color, width, alpha) {
+export function glowLine(ctx, path, color, width, alpha, dash = null) {
   if (alpha <= 0) return;
   ctx.save();
+  applyDash(ctx, dash);
   ctx.globalCompositeOperation = 'lighter';
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
@@ -120,6 +135,45 @@ export function glowDot(ctx, x, y, radius, color, alpha = 1) {
   ctx.beginPath();
   ctx.arc(x, y, radius, 0, Math.PI * 2);
   ctx.fill();
+  ctx.restore();
+}
+
+// ───────── Texte ─────────
+
+export const TEXT_LINE_HEIGHT = 1.25;
+export const textFont = (size) => `600 ${size}px "Segoe UI Variable Display", "Segoe UI", "Inter", system-ui, sans-serif`;
+
+/** Lignes du texte et boîte englobante (o.box), mesurées avec la police réelle. */
+export function layoutText(ctx, o) {
+  ctx.save();
+  ctx.font = textFont(o.size);
+  const lines = o.text.split('\n');
+  const widths = lines.map((l) => ctx.measureText(l).width);
+  ctx.restore();
+  o.box = { x: o.x, y: o.y, w: Math.max(0, ...widths), h: lines.length * o.size * TEXT_LINE_HEIGHT };
+  return { lines, widths };
+}
+
+/** Texte néon : halo de la couleur puis lettres éclaircies. `boost` surexpose (apparition). */
+export function neonText(ctx, o, { alpha = 1, boost = 0, rise = 0 } = {}) {
+  if (alpha <= 0 || !o.text) return;
+  const { lines } = layoutText(ctx, o);
+  const lh = o.size * TEXT_LINE_HEIGHT;
+  const black = o.color.hex === PALETTE.k.hex;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.font = textFont(o.size);
+  ctx.textBaseline = 'top';
+  lines.forEach((line, i) => {
+    const y = o.y + i * lh + (lh - o.size) / 2 + rise;
+    ctx.shadowColor = o.color.glow;
+    ctx.shadowBlur = o.size * (0.5 + boost * 0.7);
+    ctx.fillStyle = o.color.hex;
+    ctx.fillText(line, o.x, y);
+    ctx.shadowBlur = o.size * 0.12;
+    ctx.fillStyle = black ? o.color.hex : mix(o.color.hex, '#ffffff', Math.min(1, 0.45 + boost * 0.45));
+    ctx.fillText(line, o.x, y);
+  });
   ctx.restore();
 }
 

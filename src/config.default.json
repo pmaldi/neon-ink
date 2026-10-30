@@ -3,15 +3,33 @@
   "raccourcis": {
     "basculerDessin": "F10",
     "effacerEtQuitter": "Escape",
-    "annuler": ["Ctrl+Z", "Backspace"],
-    "toutEffacer": ["Delete", "X"],
-    "epaisseurPlus": ["+", "="],
-    "epaisseurMoins": ["-", "_"],
-    "aide": ["H", "?", "F1"],
+    "annuler": [
+      "Ctrl+Z",
+      "Backspace"
+    ],
+    "toutEffacer": [
+      "Delete",
+      "X"
+    ],
+    "epaisseurPlus": [
+      "+",
+      "="
+    ],
+    "epaisseurMoins": [
+      "-",
+      "_"
+    ],
+    "aide": [
+      "H",
+      "?",
+      "F1"
+    ],
     "stylo": "D",
     "gomme": "E",
     "gommePrecise": "T",
     "etapes": "S",
+    "texte": "I",
+    "tirets": "L",
     "nouvelleSequence": "N",
     "formesAuto": "F",
     "tableauNoir": "Shift+K",
@@ -28,6 +46,9 @@
     "couleurNoir": "K"
   },
   "liens": [
-    { "nom": "GitHub", "url": "https://github.com/pmaldi/neon-ink" }
+    {
+      "nom": "GitHub",
+      "url": "https://github.com/pmaldi/neon-ink"
+    }
   ]
 }

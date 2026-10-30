@@ -1,5 +1,5 @@
 import { recognize, smoothFree } from './shapes.js';
-import { PALETTE, buildPath, neon, glowLine, glowDot, badge, arrow } from './render.js';
+import { PALETTE, buildPath, neon, glowLine, glowDot, badge, arrow, neonText, layoutText, textFont, TEXT_LINE_HEIGHT } from './render.js';
 import { checkUpdate } from './update.js';
 import { buildKeymap, eventCombo, prettyCombo } from './keys.js';
 import { playEgg, eggOpen, closeEgg } from './egg.js';
@@ -21,7 +21,9 @@ const sctx = staticCv.getContext('2d'), fctx = fxCv.getContext('2d');
 
 const state = {
   drawMode: false,
-  tool: 'pen', // pen | eraser | cutter | steps
+  tool: 'pen', // pen | eraser | cutter | steps | text
+  dashed: false, // traits en tirets
+  editing: null, // texte en cours de frappe
   color: PALETTE.b,
   width: 5,
   shapes: true,
@@ -94,6 +96,20 @@ function prevStep(o) {
   return null;
 }
 
+/** Tirets d'un trait, décalés de `offset` quand on n'en dessine qu'une partie. */
+const dashOf = (o, offset = 0) => (o.dash ? { width: o.width, offset } : null);
+
+function drawText(ctx, o, now) {
+  if (o.dying) {
+    // Le texte s'élève et s'éteint.
+    const p = clamp((now - o.dying) / T.OUT, 0, 1);
+    neonText(ctx, o, { alpha: 1 - p, boost: p * 0.6, rise: -p * 14 });
+    return;
+  }
+  const age = now - o.born;
+  neonText(ctx, o, { boost: age < T.IN ? (1 - age / T.IN) ** 2 : 0 });
+}
+
 function drawStroke(ctx, o, now) {
   geometry(o);
   const age = now - o.born;
@@ -102,7 +118,7 @@ function drawStroke(ctx, o, now) {
     // Le trait se « dé-dessine » depuis son début en perdant son éclat.
     const p = clamp((now - o.dying) / T.OUT, 0, 1);
     const pts = subPath(o.pts, o.closed, o.cum, o.len * p * p, o.len);
-    if (pts.length) neon(ctx, buildPath(pts, false, o.smooth), o.color, o.width * (1 + p * 0.4), 1 - p * 0.75, p * 0.5);
+    if (pts.length) neon(ctx, buildPath(pts, false, o.smooth), o.color, o.width * (1 + p * 0.4), 1 - p * 0.75, p * 0.5, dashOf(o, o.len * p * p));
     return;
   }
 
@@ -110,12 +126,12 @@ function drawStroke(ctx, o, now) {
     // Le tracé brut se transforme en forme parfaite.
     const t = easeOutCubic(age / T.MORPH);
     const pts = o.morph.from.map((a, i) => lerp(a, o.morph.to[i], t));
-    neon(ctx, buildPath(pts, false, true), o.color, o.width, 1, 0.9);
+    neon(ctx, buildPath(pts, false, true), o.color, o.width, 1, 0.9, dashOf(o));
     return;
   }
 
   const flash = age < T.IN ? (1 - age / T.IN) ** 2 : 0;
-  neon(ctx, o.path, o.color, o.width, 1, flash * 0.8);
+  neon(ctx, o.path, o.color, o.width, 1, flash * 0.8, dashOf(o));
 
   // Une comète lumineuse parcourt le trait : il se « remplit » d'énergie.
   if (age < T.IN && o.len > 4) {
@@ -124,7 +140,7 @@ function drawStroke(ctx, o, now) {
     const tailLen = Math.max(40, o.len * 0.2);
     const head = easeInOut(q) * (o.len + tailLen);
     const seg = subPath(o.pts, o.closed, o.cum, head - tailLen, head);
-    if (seg.length > 1) glowLine(ctx, buildPath(seg, false, o.smooth), o.color, o.width * 0.6, 0.9 * (1 - q * 0.5));
+    if (seg.length > 1) glowLine(ctx, buildPath(seg, false, o.smooth), o.color, o.width * 0.6, 0.9 * (1 - q * 0.5), dashOf(o, Math.max(0, head - tailLen)));
   }
 }
 
@@ -161,7 +177,8 @@ function drawStepBadge(ctx, o, now) {
 }
 
 function drawObjects(ctx, list, now) {
-  for (const o of list) if (o.kind !== 'step') drawStroke(ctx, o, now);
+  for (const o of list) if (o.kind === 'text') drawText(ctx, o, now);
+    else if (o.kind !== 'step') drawStroke(ctx, o, now);
   for (const o of list) if (o.kind === 'step') drawStepArrow(ctx, o, now);
   for (const o of list) if (o.kind === 'step') drawStepBadge(ctx, o, now);
 }
@@ -218,7 +235,10 @@ function updateEffects(now, dt) {
     if (!o.burst) {
       o.burst = true;
       if (o.kind === 'step') for (let i = 0; i < 22; i++) spark(o.x, o.y, o.color, 160);
-      else {
+      else if (o.kind === 'text') {
+        const b = o.box ?? { x: o.x, y: o.y, w: 0, h: 0 };
+        for (let i = 0; i < 26; i++) spark(b.x + Math.random() * b.w, b.y + Math.random() * b.h, o.color, 90);
+      } else {
         geometry(o);
         for (let i = 0; i < 16; i++) {
           const p = pointAt(o.pts, o.closed, o.cum, Math.random() * o.len);
@@ -275,10 +295,11 @@ function frame() {
   clear(fctx);
   drawObjects(fctx, state.objects.filter((o) => !o.inStatic), now);
   if (state.active) drawActive(now);
+  if (state.editing) drawEditing(now);
   drawParticles(fctx);
   drawCursor();
 
-  const busy = state.active || state.particles.length || state.objects.some((o) => !o.inStatic);
+  const busy = state.active || state.editing || state.particles.length || state.objects.some((o) => !o.inStatic);
   if (busy) requestRender();
   else maybeHide();
 }
@@ -286,7 +307,12 @@ function frame() {
 function drawActive(now) {
   const a = state.active;
   const pts = a.pts;
-  neon(fctx, buildPath(pts, false, true), a.color, a.width, 1, 0.15);
+  neon(fctx, buildPath(pts, false, true), a.color, a.width, 1, 0.15, a.dash ? { width: a.width } : null);
+  if (a.dash) {
+    const tip = pts[pts.length - 1];
+    glowDot(fctx, tip.x, tip.y, a.width * 3.4, a.color, 0.9);
+    return;
+  }
 
   // Partie fraîche du trait : chauffée à blanc, elle refroidit vers sa couleur.
   let i = pts.length - 1;
@@ -335,6 +361,21 @@ function drawCursor() {
     ctx.setLineDash([]);
     ctx.fillStyle = 'rgba(255,255,255,0.08)';
     ctx.fill();
+  } else if (state.tool === 'text') {
+    if (state.editing) return ctx.restore();
+    const h = textSize() * 1.1;
+    ctx.shadowColor = state.color.glow;
+    ctx.shadowBlur = 8;
+    ctx.strokeStyle = state.color.hex === PALETTE.k.hex ? '#ffffff' : state.color.hex;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y - h / 2);
+    ctx.lineTo(p.x, p.y + h / 2);
+    ctx.moveTo(p.x - 5, p.y - h / 2);
+    ctx.lineTo(p.x + 5, p.y - h / 2);
+    ctx.moveTo(p.x - 5, p.y + h / 2);
+    ctx.lineTo(p.x + 5, p.y + h / 2);
+    ctx.stroke();
   } else if (state.tool === 'steps' && !state.active) {
     ctx.restore();
     badge(ctx, p.x, p.y, STEP_R, state.nextStep, state.color, { alpha: 0.4, scale: 0.85 });
@@ -388,7 +429,7 @@ function finishStroke(freehand) {
     const pts = smoothFree(raw);
     res = pts.length > 1 ? { kind: 'free', pts, closed: false, smooth: true } : { kind: 'dot', pts: [raw[0]], closed: false, smooth: false };
   }
-  const o = { id: nextId++, kind: res.kind, color: a.color, width: a.width, pts: res.pts, closed: res.closed, smooth: res.smooth, born: performance.now() };
+  const o = { id: nextId++, kind: res.kind, color: a.color, width: a.width, dash: a.dash, pts: res.pts, closed: res.closed, smooth: res.smooth, born: performance.now() };
   if (res.kind !== 'free' && res.kind !== 'dot') o.morph = prepMorph(raw, res.pts, res.closed);
   state.objects.push(o);
 }
@@ -399,12 +440,76 @@ function addStep(p) {
   o.delay = prevStep(o) ? T.STEP_ARROW * 0.7 : 0;
 }
 
+/** La gomme touche le texte si elle mord sur sa boîte englobante. */
+function textHit(o, p, r) {
+  if (!o.box) layoutText(fctx, o);
+  const b = o.box;
+  const dx = Math.max(b.x - p.x, 0, p.x - (b.x + b.w));
+  const dy = Math.max(b.y - p.y, 0, p.y - (b.y + b.h));
+  return Math.hypot(dx, dy) < r;
+}
+
+// ───────────────────────── Texte ─────────────────────────
+
+const textInput = $('text-input');
+const textSize = () => Math.round(12 + state.width * 3.2);
+
+/** Ouvre une zone de texte à l'endroit `p` : la frappe s'y écrit en direct. */
+function startText(p) {
+  commitText();
+  const size = textSize();
+  state.editing = { kind: 'text', x: p.x, y: p.y - (size * TEXT_LINE_HEIGHT) / 2, size, color: state.color, text: '', caretAt: performance.now() };
+  textInput.value = '';
+  textInput.style.left = `${p.x}px`;
+  textInput.style.top = `${p.y}px`;
+  textInput.focus({ preventScroll: true });
+  requestRender();
+}
+
+/** Termine la saisie : le texte rejoint le dessin (rien si la zone est vide). */
+function commitText() {
+  const t = state.editing;
+  if (!t) return;
+  state.editing = null;
+  textInput.blur();
+  if (t.text.trim()) {
+    state.objects.push({ id: nextId++, kind: 'text', x: t.x, y: t.y, size: t.size, color: t.color, text: t.text.replace(/\s+$/, ''), born: performance.now() });
+  }
+  requestRender();
+}
+
+textInput.addEventListener('input', () => {
+  if (!state.editing) return;
+  state.editing.text = textInput.value;
+  state.editing.caretAt = performance.now();
+  requestRender();
+});
+
+function drawEditing(now) {
+  const t = state.editing;
+  neonText(fctx, t);
+  // Curseur clignotant à la fin du texte.
+  const { lines, widths } = layoutText(fctx, t);
+  if (Math.floor((now - t.caretAt) / 530) % 2 === 0) {
+    const lh = t.size * TEXT_LINE_HEIGHT;
+    const x = t.x + widths[widths.length - 1] + 2;
+    const y = t.y + (lines.length - 1) * lh + lh * 0.12;
+    fctx.save();
+    fctx.shadowColor = t.color.glow;
+    fctx.shadowBlur = 10;
+    fctx.fillStyle = t.color.hex === PALETTE.k.hex ? '#ffffff' : t.color.hex;
+    fctx.fillRect(x, y, Math.max(2, t.size / 14), lh * 0.76);
+    fctx.restore();
+  }
+}
+
 function eraseAt(p) {
   const r = eraserRadius();
   for (const o of state.objects) {
     if (o.dying) continue;
     let hit;
     if (o.kind === 'step') hit = dist(o, p) < STEP_R + r;
+    else if (o.kind === 'text') hit = textHit(o, p, r);
     else {
       geometry(o);
       hit = polyDist(p, o.pts, o.closed) < r + o.width / 2;
@@ -424,6 +529,10 @@ function cutAt(p) {
       if (dist(o, p) < STEP_R + r) kill(o);
       continue;
     }
+    if (o.kind === 'text') {
+      if (textHit(o, p, r)) kill(o);
+      continue;
+    }
     geometry(o);
     const reach = r + o.width / 2;
     if (polyDist(p, o.pts, o.closed) >= reach) continue;
@@ -435,7 +544,7 @@ function cutAt(p) {
     if (!pieces) continue;
     for (let k = 0; k < 6; k++) spark(p.x + (Math.random() - 0.5) * r, p.y + (Math.random() - 0.5) * r, o.color, 80, 420);
     const pieceObjects = pieces.map((pts) => ({
-      id: nextId++, kind: 'free', color: o.color, width: o.width, pts, closed: false, smooth: true, born: now - T.IN,
+      id: nextId++, kind: 'free', color: o.color, width: o.width, dash: o.dash, pts, closed: false, smooth: true, born: now - T.IN,
     }));
     state.objects.splice(i, 1, ...pieceObjects);
     i += pieceObjects.length - 1;
@@ -494,14 +603,14 @@ function clearAll() {
 
 // ───────────────────────── Interface ─────────────────────────
 
-const TOOL_LABEL = { pen: '✎ Stylo', eraser: '⌫ Gomme', cutter: '✂ Gomme précise', steps: '① Étapes' };
+const TOOL_LABEL = { pen: '✎ Stylo', eraser: '⌫ Gomme', cutter: '✂ Gomme précise', steps: '① Étapes', text: '⌶ Texte' };
 let toastTimer = 0, idleTimer = 0;
 
 function updateHud() {
   document.documentElement.style.setProperty('--c', state.color.glow === state.color.hex ? state.color.hex : '#d9d9e6');
   $('hud-color').textContent = state.color.name;
   $('hud-tool').textContent = TOOL_LABEL[state.tool];
-  $('hud-shapes').textContent = state.shapes ? '◇ Formes auto' : '〰 Main levée';
+  $('hud-shapes').textContent = (state.shapes ? '◇ Formes auto' : '〰 Main levée') + (state.dashed ? ' · ┄ Tirets' : '');
   $('hud-width').textContent = `${state.width} px`;
   const hud = $('hud');
   hud.classList.remove('idle');
@@ -557,6 +666,7 @@ function setDrawMode(on, keepVisible = false) {
     }
   } else {
     if (state.active) finishStroke(false);
+    commitText();
     state.pending = null;
     state.erasing = false;
     state.pointer = null;
@@ -631,6 +741,19 @@ const ACTIONS = {
     toast(state.shapes ? 'Formes auto : activées' : 'Formes auto : désactivées');
     updateHud();
   },
+  texte() {
+    if (state.tool !== 'text') setTool('text');
+    // Le curseur de texte apparaît tout de suite sous la souris.
+    if (state.pointer) startText(state.pointer);
+    else toast('Clique là où écrire');
+  },
+  tirets() {
+    state.dashed = !state.dashed;
+    if (state.tool !== 'pen' && state.tool !== 'steps') state.tool = 'pen';
+    toast(state.dashed ? '┄ Traits en tirets' : '━ Traits pleins');
+    updateHud();
+    requestRender();
+  },
   tableauNoir: () => setBoard('black'),
   tableauBlanc: () => setBoard('white'),
 };
@@ -678,6 +801,14 @@ function onKey(e) {
     if (!['Shift', 'Control', 'Alt', 'Meta', 'AltGraph', 'CapsLock', 'Dead'].includes(e.key)) finishCapture(eventCombo(e));
     return;
   }
+  if (state.editing) {
+    // La frappe va dans la zone de texte ; Échap termine.
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      commitText();
+    }
+    return;
+  }
   const combo = eventCombo(e);
   const action = keymap.map.get(combo);
   // Hors Tauri (navigateur, pour le développement), le raccourci global bascule localement.
@@ -713,6 +844,8 @@ const HELP_SECTIONS = [
     ['gomme', 'Gomme : trait entier (ou clic droit)'],
     ['gommePrecise', 'Gomme précise : une partie du trait'],
     ['etapes', 'Étapes : clic = pastille, glisser = trait'],
+    ['texte', 'Texte : écrire au clavier (Échap pour finir)'],
+    ['tirets', 'Trait plein / en tirets'],
     ['nouvelleSequence', 'Nouvelle séquence d’étapes'],
     ['formesAuto', 'Formes auto on/off (Maj en relâchant : main levée)'],
     ['tableauNoir', 'Tableau noir (même touche : retour)'],
@@ -888,7 +1021,8 @@ function toggleHelp(force) {
 
 function changeWidth(delta) {
   state.width = clamp(state.width + delta, 2, 24);
-  toast(`Épaisseur ${state.width} px`);
+  if (state.editing) state.editing.size = textSize();
+  toast(state.editing || state.tool === 'text' ? `Texte ${textSize()} px` : `Épaisseur ${state.width} px`);
   updateHud();
   requestRender();
 }
@@ -902,6 +1036,16 @@ fxCv.addEventListener('pointerdown', (e) => {
   fxCv.setPointerCapture(e.pointerId);
   const p = pos(e);
   state.pointer = p;
+  // Un clic termine le texte en cours ; avec l'outil texte, il en ouvre un nouveau ici.
+  // preventDefault garde le focus sur la zone de saisie.
+  const wasEditing = !!state.editing;
+  commitText();
+  if (e.button === 0 && state.tool === 'text') {
+    e.preventDefault();
+    startText(p);
+    return;
+  }
+  if (wasEditing) return requestRender();
   const penEraser = e.pointerType === 'pen' && (e.buttons & 32);
   if (e.button === 0 && state.tool === 'cutter') {
     state.erasing = 'fine';
@@ -914,7 +1058,7 @@ fxCv.addEventListener('pointerdown', (e) => {
   } else if (e.button === 0 && state.tool === 'steps') {
     state.pending = p;
   } else if (e.button === 0) {
-    state.active = { pts: [p], color: state.color, width: state.width };
+    state.active = { pts: [p], color: state.color, width: state.width, dash: state.dashed };
   }
   requestRender();
 });
@@ -926,7 +1070,7 @@ fxCv.addEventListener('pointermove', (e) => {
     const p = pos(ev);
     if (state.pending && dist(state.pending, p) >= DRAG_START) {
       // En mode étapes, glisser dessine un trait (avec reconnaissance de formes).
-      state.active = { pts: [state.pending, p], color: state.color, width: state.width };
+      state.active = { pts: [state.pending, p], color: state.color, width: state.width, dash: state.dashed };
       state.pending = null;
     } else if (state.active) {
       const pts = state.active.pts;

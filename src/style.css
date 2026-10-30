@@ -318,3 +318,15 @@ body.browser #help-file { display: none; }
 /* Navigateur : F10 masque les tracés comme la fenêtre masquée sous Windows. */
 body.concealed #static,
 body.concealed #fx { visibility: hidden; }
+
+/* Outil texte : la saisie passe par une zone invisible placée au curseur (fenêtre des accents au bon endroit). */
+#text-input {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  resize: none;
+  pointer-events: none;
+}
