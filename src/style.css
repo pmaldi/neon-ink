@@ -433,3 +433,7 @@ body.concealed #fx { visibility: hidden; }
   resize: none;
   pointer-events: none;
 }
+
+/* F10 pendant qu'un calque de plugin est affiché (minuteur) : les dessins attendent le prochain F10. */
+body.overlay-only #static,
+body.overlay-only #board { visibility: hidden; }

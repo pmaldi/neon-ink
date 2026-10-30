@@ -44,6 +44,7 @@ const state = {
   seq: 1,
   nextStep: 1,
   staticDirty: true,
+  overlayOnly: false, // F10 avec un calque de plugin affiché : seul le calque se voit
   hideRequested: false,
 };
 let nextId = 1;
@@ -81,6 +82,7 @@ const plugins = createPluginHost({
 let dpr = 1;
 let raf = 0;
 let lastFrame = performance.now();
+let overlayShown = false;
 
 const easeOutCubic = (t) => 1 - (1 - t) ** 3;
 const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
@@ -348,13 +350,18 @@ function frame() {
   updateEffects(now, dt);
 
   clear(fctx);
-  drawObjects(fctx, state.objects.filter((o) => !o.inStatic), now);
+  if (!state.overlayOnly) drawObjects(fctx, state.objects.filter((o) => !o.inStatic), now);
   if (state.active) drawActive(now);
   if (state.placing) drawPlacing();
   pluginTool()?.preview?.(fctx, now);
   if (state.editing) drawEditing(now);
   drawParticles(fctx);
   const overlays = plugins.overlays(fctx, now, state.pointer);
+  if (overlays !== overlayShown) {
+    // Tant qu'un calque est affiché (minuteur…), F10 laisse la fenêtre visible.
+    overlayShown = overlays;
+    invoke('overlay_shown', { on: overlays });
+  }
   if (state.wheel) drawWheel(now);
   drawCursor();
 
@@ -849,6 +856,9 @@ function setDrawMode(on, keepVisible = false) {
   state.drawMode = on;
   document.body.classList.toggle('drawing', on);
   if (!tauri) document.body.classList.toggle('concealed', !on && !keepVisible);
+  // F10 avec un calque de plugin affiché (minuteur) : la fenêtre reste, mais seul le calque se voit.
+  state.overlayOnly = !on && !keepVisible;
+  document.body.classList.toggle('overlay-only', state.overlayOnly);
   if (on) {
     state.hideRequested = false;
     window.focus();

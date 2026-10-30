@@ -23,6 +23,11 @@ static DRAW_MODE: AtomicBool = AtomicBool::new(false);
 /// Vrai quand le calque n'a plus aucun tracé : au prochain F10, il suit l'écran de la souris.
 /// Sinon il revient sur l'écran où les tracés ont été faits.
 static EMPTY: AtomicBool = AtomicBool::new(true);
+/// Un calque de plugin est affiché (minuteur…) : F10 ne masque pas la fenêtre, il la rend
+/// seulement transparente aux clics.
+static OVERLAY_SHOWN: AtomicBool = AtomicBool::new(false);
+/// F10 a laissé la fenêtre visible à cause d'un calque : elle sera masquée quand il disparaîtra.
+static HIDE_AFTER_OVERLAY: AtomicBool = AtomicBool::new(false);
 
 /// Rien en cours : ni dessin, ni tracé gardé en mémoire. Une mise à jour peut redémarrer l'application.
 pub fn is_idle() -> bool {
@@ -139,6 +144,7 @@ fn apply_draw_mode(app: &AppHandle, on: bool, keep_visible: bool) {
     DRAW_MODE.store(on, Ordering::SeqCst);
     if let Some(win) = overlay(app) {
         if on {
+            HIDE_AFTER_OVERLAY.store(false, Ordering::SeqCst);
             #[cfg(windows)]
             focus::remember(win.hwnd().map(|h| h.0 as isize).unwrap_or(0));
             if EMPTY.swap(false, Ordering::SeqCst) {
@@ -150,7 +156,10 @@ fn apply_draw_mode(app: &AppHandle, on: bool, keep_visible: bool) {
             let _ = win.set_focus();
         } else {
             let _ = win.set_ignore_cursor_events(true);
-            if !keep_visible {
+            let hide = !keep_visible;
+            let overlay_shown = OVERLAY_SHOWN.load(Ordering::SeqCst);
+            HIDE_AFTER_OVERLAY.store(hide && overlay_shown, Ordering::SeqCst);
+            if hide && !overlay_shown {
                 let _ = win.hide();
             }
             #[cfg(windows)]
@@ -170,6 +179,17 @@ fn toggle_draw_mode(app: &AppHandle) {
 #[tauri::command]
 fn set_draw_mode(app: AppHandle, on: bool, keep_visible: Option<bool>) {
     apply_draw_mode(&app, on, keep_visible.unwrap_or(false));
+}
+
+/// L'interface signale qu'un calque de plugin est affiché, ou ne l'est plus.
+#[tauri::command]
+fn overlay_shown(app: AppHandle, on: bool) {
+    OVERLAY_SHOWN.store(on, Ordering::SeqCst);
+    if !on && !DRAW_MODE.load(Ordering::SeqCst) && HIDE_AFTER_OVERLAY.swap(false, Ordering::SeqCst) {
+        if let Some(win) = overlay(&app) {
+            let _ = win.hide();
+        }
+    }
 }
 
 /// Appelé par l'interface quand il n'y a plus rien à afficher : on masque la fenêtre
@@ -219,6 +239,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             set_draw_mode,
             hide_overlay,
+            overlay_shown,
             capture::capture_screen,
             capture::save_capture,
             capture::open_captures,
