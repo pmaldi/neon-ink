@@ -120,7 +120,10 @@ def check_capture(shown):
 
     folder = os.path.join(os.environ["USERPROFILE"], "Pictures", "NeonInk")
     started = time.time()
-    tap(0x4D)  # M : outil Formes (rectangle)
+    user32.SetCursorPos(600, 400)
+    time.sleep(0.2)
+    tap(0x4D)  # M : roue des formes, le rectangle est en haut
+    click(600, 400 - 104)
     drag((200, 300), (520, 520))
     # Roue des appareils au bouton 4 maintenu : viser le routeur (en haut), relâcher, puis poser.
     user32.SetCursorPos(800, 420)

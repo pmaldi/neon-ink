@@ -1030,9 +1030,22 @@ const ACTIONS = {
     requestRender();
   },
   formes() {
-    // Première pression : l'outil Formes ; les suivantes passent à la forme suivante.
-    if (state.tool === 'stamp') state.stamp = (state.stamp + 1) % STAMPS.length;
-    setTool('stamp');
+    // Roue des formes : maintenir et relâcher sur la forme, ou appuyer puis cliquer.
+    openWheel({
+      items: STAMPS.map((s) => ({
+        label: s.label.slice(2),
+        draw(ctx, x, y, size, color, alpha) {
+          const r = size * 1.1;
+          const shape = stamp(s.kind, { x: x - r, y: y - (s.kind === 'arrow' ? 0 : r) }, { x: x + r, y: y + (s.kind === 'arrow' ? 0 : r) }, { regular: true, width: 2 });
+          neon(ctx, buildPath(shape.pts, shape.closed, shape.smooth), color, 2.5, alpha);
+        },
+      })),
+      selected: state.stamp,
+      onPick(i) {
+        state.stamp = i;
+        setTool('stamp');
+      },
+    });
   },
   capture: () => screenshot(),
   dossierCaptures: () => (tauri ? invoke('open_captures') : toast('Dossier des captures : version Windows uniquement')),
@@ -1190,7 +1203,7 @@ const HELP_TABS = [
   { id: 'outils', title: 'Outils', groups: [
     ['Tracer', [
       ['stylo', 'Stylo'],
-      ['formes', 'Formes toutes faites', 'Rappuyer : forme suivante · Maj : forme régulière'],
+      ['formes', 'Roue des formes', 'Maintenir et relâcher sur une forme, ou appuyer puis cliquer · Maj en traçant : forme régulière'],
       ['texte', 'Texte au clavier', 'Échap ou un clic pour terminer'],
       ['tirets', 'Trait plein / en tirets'],
       ['formesAuto', 'Reconnaissance des formes on / off', 'Maj en relâchant : garder le tracé à main levée'],

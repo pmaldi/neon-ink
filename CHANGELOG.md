@@ -7,6 +7,9 @@ et le projet respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Modifié
+- **M** ouvre la roue des formes (rectangle, rond, triangle, étoile, flèche), comme **J** pour les appareils réseau : maintenir, viser, relâcher, ou appuyer puis cliquer.
+
 ## [0.10.0] - 2026-10-30
 
 ### Ajouté
