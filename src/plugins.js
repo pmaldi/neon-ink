@@ -98,6 +98,8 @@ export function createPluginHost(host) {
       screen: () => host.screen(),
       /** Taille de l'écran en pixels CSS : { w, h }. */
       get size() { return host.size(); },
+      /** Vrai en mode dessin (faux quand NeonInk laisse passer la souris, après F10). */
+      get drawing() { return !!host.state.drawMode; },
       /** Dernière position du pointeur ({ x, y }) ou null. */
       get pointer() { return host.state.pointer; },
     };

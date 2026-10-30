@@ -59,7 +59,7 @@ puis `http://localhost:3000/src/index.html?plugins=exemple`, F10 pour dessiner.
 | `defineOverlay(nom, { active(), draw(ctx, now, pointeur) })` | Calque dessiné par-dessus tout, à chaque image, tant que `active()` est vrai (spot, minuteur…). `pointeur` : `{ x, y }` ou null. *NeonInk 0.11* |
 | `prompt({ x, y, value, placeholder })` | Champ de saisie néon près du point : rend une promesse du texte tapé (Entrée ou clic ailleurs), ou `null` (Échap, champ vide). *NeonInk 0.11* |
 | `screen()` | Promesse d'une image (canvas, pixels physiques) de l'écran sous NeonInk, sans les dessins ; `null` hors Windows. *NeonInk 0.11* |
-| `size`, `pointer` | Taille de l'écran `{ w, h }` en pixels CSS ; dernière position du pointeur ou `null`. *NeonInk 0.11* |
+| `size`, `pointer`, `drawing` | Taille de l'écran `{ w, h }` en pixels CSS ; dernière position du pointeur ou `null` ; vrai en mode dessin. Un calque reste affiché hors du mode dessin (minuteur) : s'il ne doit vivre qu'en dessinant (spot), son `active()` teste `api.drawing`. *NeonInk 0.11* |
 
 Les fonctions marquées *NeonInk 0.11* n'existent pas dans les versions plus anciennes : un plugin
 qui en a besoin le vérifie au début d'`activate` et lève une erreur claire
