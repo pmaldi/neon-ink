@@ -2,7 +2,8 @@
 // (routeur, switch, serveur, PC, pare-feu, Internet, borne Wi-Fi) reliés par des liens
 // où circulent des paquets.
 //
-// Touche J (par défaut) : outil Réseau ; rappuyer sur J : appareil suivant.
+// Touche J (par défaut) : roue des appareils. Maintenir J, viser l'appareil, relâcher ;
+// ou appuyer sur J puis cliquer sur l'appareil. La touche peut aussi être un bouton de souris.
 //  - clic dans le vide : pose l'appareil choisi (aimanté au quadrillage sur papier à carreaux) ;
 //  - glisser d'un appareil à un autre : les relie ;
 //  - glisser d'un appareil vers le vide : pose un nouvel appareil, déjà relié.
@@ -12,7 +13,7 @@ export const manifest = {
   id: 'reseau',
   nom: 'Réseau',
   description: 'Plans réseau : routeur, switch, serveur, PC, pare-feu, Internet et Wi-Fi, reliés par des liens animés.',
-  version: '1.0.1',
+  version: '1.1.0',
   api: 1,
 };
 
@@ -311,12 +312,28 @@ export function activate(api) {
   });
 
   api.defineAction('reseau', {
-    label: 'Outil Réseau',
-    hint: 'Rappuyer : appareil suivant · glisser d’un appareil à l’autre : relier',
+    label: 'Roue des appareils réseau',
+    hint: 'Maintenir et relâcher sur un appareil, ou appuyer puis cliquer · glisser d’un appareil à l’autre : relier',
     key: 'J',
     run() {
-      if (api.toolActive('reseau')) current = (current + 1) % DEVICES.length;
-      api.useTool('reseau');
+      if (!api.wheel) {
+        // NeonInk antérieur à 0.10 : pas de roue, la touche passe à l'appareil suivant.
+        if (api.toolActive('reseau')) current = (current + 1) % DEVICES.length;
+        api.useTool('reseau');
+        return;
+      }
+      api.wheel({
+        items: DEVICES.map((d) => ({
+          label: d.label,
+          draw: (ctx, x, y, s, color, alpha, now) => drawDevice(ctx, { device: d.kind, color }, x, y, s, clock(now), alpha),
+        })),
+        selected: current,
+        onPick(i) {
+          current = i;
+          api.useTool('reseau');
+          api.refreshHud();
+        },
+      });
     },
   });
 

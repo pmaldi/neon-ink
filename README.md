@@ -51,7 +51,7 @@ Les lettres suivent la disposition du clavier (AZERTY compris). Le bouton gomme 
 
 Dans l'aide (**H**, ou menu de l'icône › **Aide, raccourcis et plugins…**), classée en onglets avec une recherche, chaque touche se modifie d'un clic :
 
-- **clic sur une touche**, puis appui sur la nouvelle (Maj, Ctrl, Alt acceptés) ; un clic ailleurs annule ;
+- **clic sur une touche**, puis appui sur la nouvelle (Maj, Ctrl, Alt acceptés) ou sur un bouton de la souris : clic molette, boutons latéraux 4 et 5 ; un clic ailleurs annule ;
 - **+** en bout de ligne ajoute une touche de plus pour la même action ;
 - **clic droit** sur une touche la retire ;
 - **Touches d'origine** rétablit tout.
@@ -145,7 +145,7 @@ Le push du tag lance le workflow « Release », qui compile l'application et pub
 
 Des fonctionnalités en plus, absentes des installateurs : chacune se télécharge depuis l'aide (**H**), onglet **Plugins**, bouton **Installer**. Un plugin installé se charge à chaque démarrage, ajoute ses touches à l'aide et se met à jour tout seul ; **Retirer** le désactive aussitôt.
 
-**Réseau** : plans réseau en néon. **J** choisit l'outil ; rappuyer sur **J** passe à l'appareil suivant (routeur, switch, serveur, PC, pare-feu, Internet, borne Wi-Fi). Un clic pose l'appareil, nommé automatiquement (R1, SW1, PC2…). Glisser d'un appareil à un autre les relie ; glisser vers le vide pose un nouvel appareil déjà relié. Des paquets circulent sur les liens, les voyants clignotent ; **Maj+J** met les animations en pause. Sur papier à carreaux, les appareils s'alignent sur le quadrillage.
+**Réseau** : plans réseau en néon. **J** ouvre la roue des appareils (routeur, switch, serveur, PC, pare-feu, Internet, borne Wi-Fi) : maintenir **J**, viser l'appareil, relâcher ; ou appuyer sur **J** puis cliquer dessus. La roue peut aussi s'ouvrir avec un bouton de la souris (voir ci-dessous). Un clic pose l'appareil, nommé automatiquement (R1, SW1, PC2…). Glisser d'un appareil à un autre les relie ; glisser vers le vide pose un nouvel appareil déjà relié. Des paquets circulent sur les liens, les voyants clignotent ; **Maj+J** met les animations en pause. Sur papier à carreaux, les appareils s'alignent sur le quadrillage.
 
 Pour écrire un plugin : [plugins/README.md](plugins/README.md).
 

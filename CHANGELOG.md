@@ -7,6 +7,10 @@ et le projet respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Ajouté
+- Roue de sélection : maintenir la touche, viser, relâcher (ou appuyer puis cliquer). Plugin Réseau 1.1.0 : **J** ouvre la roue des appareils (routeur, switch, serveur, PC, pare-feu, Internet, Wi-Fi). Les plugins peuvent l'utiliser (`api.wheel`).
+- Boutons de la souris dans les raccourcis : clic molette et boutons latéraux 4 et 5, seuls ou avec Ctrl, Alt, Maj. Dans l'aide, clic sur une touche puis sur le bouton voulu. Le raccourci global (F10) reste au clavier.
+
 ## [0.9.1] - 2026-10-30
 
 ### Modifié

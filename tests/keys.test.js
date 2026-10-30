@@ -49,3 +49,20 @@ test('affichage', () => {
   assert.equal(prettyCombo('Ctrl++'), 'Ctrl++');
   assert.equal(prettyCombo('Escape'), 'Échap');
 });
+
+import { mouseCombo, isMouseCombo } from '../src/keys.js';
+
+test('boutons de souris : molette et boutons latéraux, gauche et droit réservés', () => {
+  assert.equal(parseCombo('Mouse4'), 'Mouse4');
+  assert.equal(parseCombo('ctrl + souris 5'), 'Ctrl+Mouse5');
+  assert.equal(parseCombo('Mouse1'), 'Mouse1'); // lu tel quel mais jamais produit par un clic
+  assert.equal(mouseCombo({ button: 1 }), 'Mouse3');
+  assert.equal(mouseCombo({ button: 3, shiftKey: true }), 'Shift+Mouse4');
+  assert.equal(mouseCombo({ button: 0 }), null);
+  assert.equal(mouseCombo({ button: 2 }), null);
+  assert.equal(prettyCombo('Ctrl+Mouse3'), 'Ctrl+Clic molette');
+  assert.ok(isMouseCombo('Alt+Mouse5'));
+  assert.ok(!isMouseCombo('M'));
+  const { map } = buildKeymap({ reseau: ['J', 'Mouse4'] });
+  assert.equal(map.get('Mouse4'), 'reseau');
+});

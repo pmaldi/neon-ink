@@ -93,6 +93,15 @@ def install_test_plugin():
     shutil.copy(os.path.join("plugins", "reseau", "plugin.js"), os.path.join(folder, "reseau.js"))
     with open(os.path.join(folder, "reseau.json"), "w", encoding="utf-8") as f:
         json.dump({"id": "reseau", "nom": "Réseau", "version": "1.0.0", "api": 1}, f)
+    # La roue des appareils aussi sur le bouton latéral 4 de la souris.
+    with open(os.path.join(os.environ["APPDATA"], "com.patrice.neonink", "config.json"), "w", encoding="utf-8") as f:
+        json.dump({"raccourcis": {"reseau.reseau": ["J", "Mouse4"]}}, f)
+
+
+def side_button(down):
+    """Bouton latéral 4 (« précédent ») de la souris, enfoncé ou relâché."""
+    user32.mouse_event(0x0080 if down else 0x0100, 0, 0, 1, 0)  # XBUTTONDOWN / XBUTTONUP, XBUTTON1
+    time.sleep(0.1)
 
 
 def click(x, y):
@@ -113,7 +122,17 @@ def check_capture(shown):
     started = time.time()
     tap(0x4D)  # M : outil Formes (rectangle)
     drag((200, 300), (520, 520))
-    tap(0x4A)  # J : outil Réseau (plugin)
+    # Roue des appareils au bouton 4 maintenu : viser le routeur (en haut), relâcher, puis poser.
+    user32.SetCursorPos(800, 420)
+    time.sleep(0.2)
+    side_button(True)
+    time.sleep(0.2)
+    for y in range(420, 315, -15):
+        user32.SetCursorPos(800, y)
+        time.sleep(0.03)
+    time.sleep(0.4)
+    side_button(False)
+    time.sleep(0.3)
     click(800, 420)
     tap(0x11, 0x53)  # Ctrl+S
     found = None
@@ -137,7 +156,7 @@ def check_capture(shown):
         "page visible sous le calque": near(corner, page),
         "barre d'état absente": near(hud, page),
         "rectangle dessiné": edge[2] > 150 and not near(edge, page, 40),
-        "routeur du plugin Réseau dessiné": sum(
+        "routeur choisi dans la roue (bouton 4) et dessiné": sum(
             1 for x in range(750, 851, 2) for y in range(370, 471, 2) if img.getpixel((x, y))[2] > 170
         ) > 40,
     }

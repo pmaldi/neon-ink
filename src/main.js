@@ -4,7 +4,7 @@ import { BOARDS, paintBoard, snapToGrid } from './boards.js';
 import { PALETTE, buildPath, neon, glowLine, glowDot, badge, arrow, neonText, neonLabel, layoutText, textFont, TEXT_LINE_HEIGHT } from './render.js';
 import { createPluginHost } from './plugins.js';
 import { checkUpdate, compareVersions } from './update.js';
-import { buildKeymap, eventCombo, parseCombo, prettyCombo } from './keys.js';
+import { buildKeymap, eventCombo, isMouseCombo, mouseCombo, parseCombo, prettyCombo } from './keys.js';
 import { playEgg, eggOpen, closeEgg } from './egg.js';
 import { dist, lerp, clamp, cumulative, subPath, pointAt, resample, polygonArea, polyDist } from './geom.js';
 
@@ -27,6 +27,7 @@ const state = {
   tool: 'pen', // pen | eraser | cutter | steps | text | stamp
   stamp: 0, // forme choisie dans STAMPS
   placing: null, // forme en cours de pose : { a, b, regular }
+  wheel: null, // roue de sélection ouverte (voir openWheel)
   dashed: false, // traits en tirets
   editing: null, // texte en cours de frappe
   color: PALETTE.b,
@@ -65,6 +66,7 @@ const plugins = createPluginHost({
   },
   objects: () => state.objects.filter((o) => !o.dying),
   snap: (p) => snapToGrid(state.board, p),
+  wheel: (opts) => openWheel(opts),
   toast: (msg, ms) => toast(msg, ms),
   render: () => requestRender(),
   refreshHud: () => updateHud(),
@@ -345,9 +347,10 @@ function frame() {
   pluginTool()?.preview?.(fctx, now);
   if (state.editing) drawEditing(now);
   drawParticles(fctx);
+  if (state.wheel) drawWheel(now);
   drawCursor();
 
-  const busy = state.active || state.placing || pluginTool()?.busy?.() || state.editing || state.particles.length || state.objects.some((o) => !o.inStatic);
+  const busy = state.active || state.placing || state.wheel || pluginTool()?.busy?.() || state.editing || state.particles.length || state.objects.some((o) => !o.inStatic);
   if (busy) requestRender();
   else maybeHide();
 }
@@ -391,6 +394,7 @@ function drawPlacing() {
 function drawCursor() {
   const p = state.pointer;
   if (!state.drawMode || !p) return;
+  if (state.wheel) return glowDot(fctx, p.x, p.y, 7, PALETTE.w, 0.9);
   const ctx = fctx;
   ctx.save();
   if (state.tool === 'cutter' || state.erasing === 'fine') {
@@ -466,6 +470,96 @@ function drawCursor() {
     ctx.arc(p.x, p.y, Math.max(1.5, state.width / 2), 0, Math.PI * 2);
     ctx.fill();
   }
+  ctx.restore();
+}
+
+// ───────────────────────── Roue de sélection ─────────────────────────
+
+const WHEEL_R = 104; // rayon du cercle des choix
+const TAU = Math.PI * 2;
+
+/**
+ * Ouvre une roue autour du pointeur : `items` = [{ label, draw(ctx, x, y, taille, couleur, alpha, now) }].
+ * Touche (ou bouton) maintenue : relâcher sur un choix le prend. Simple appui : on clique sur le choix.
+ */
+function openWheel({ items, selected = 0, onPick }) {
+  const p = state.pointer ?? { x: innerWidth / 2, y: innerHeight / 2 };
+  const m = WHEEL_R + 64;
+  state.wheel = {
+    x: clamp(p.x, m, innerWidth - m), y: clamp(p.y, m, innerHeight - m),
+    items, selected, onPick, hover: -1, openedAt: performance.now(), trigger: held?.trigger ?? null,
+  };
+  requestRender();
+}
+
+function closeWheel() {
+  state.wheel = null;
+  requestRender();
+}
+
+/** Le choix visé : la direction du pointeur depuis le centre, hors de la zone morte centrale. */
+function wheelHover(p) {
+  const w = state.wheel;
+  const d = dist(w, p);
+  if (d < 30) return (w.hover = -1);
+  const n = w.items.length;
+  const a = (Math.atan2(p.y - w.y, p.x - w.x) + Math.PI / 2 + TAU + Math.PI / n) % TAU;
+  w.hover = Math.floor(a / (TAU / n)) % n;
+}
+
+function pickWheel() {
+  const w = state.wheel;
+  closeWheel();
+  if (w && w.hover >= 0) w.onPick(w.hover);
+}
+
+function drawWheel(now) {
+  const w = state.wheel;
+  const n = w.items.length;
+  const step = TAU / n;
+  const open = easeOutBack(clamp((now - w.openedAt) / 240, 0, 1));
+  const color = state.color === PALETTE.k ? PALETTE.w : state.color;
+  const ctx = fctx;
+  ctx.save();
+  ctx.translate(w.x, w.y);
+  ctx.scale(open, open);
+  ctx.rotate((1 - Math.min(1, open)) * -0.6); // la roue tourne en s'ouvrant
+
+  ctx.fillStyle = 'rgba(8, 10, 20, 0.86)';
+  ctx.beginPath();
+  ctx.arc(0, 0, WHEEL_R + 48, 0, TAU);
+  ctx.fill();
+  const rim = new Path2D();
+  rim.arc(0, 0, WHEEL_R + 48, 0, TAU);
+  neon(ctx, rim, color, 2, 0.75);
+
+  if (w.hover >= 0) {
+    // Secteur visé : un quartier lumineux.
+    const a0 = -Math.PI / 2 + (w.hover - 0.5) * step, a1 = a0 + step;
+    const wedge = new Path2D();
+    wedge.arc(0, 0, WHEEL_R + 44, a0 + 0.03, a1 - 0.03);
+    wedge.arc(0, 0, 50, a1 - 0.05, a0 + 0.05, true);
+    wedge.closePath();
+    ctx.fillStyle = `${color.hex}2e`;
+    ctx.fill(wedge);
+    neon(ctx, wedge, color, 1.5, 0.9);
+  }
+  w.items.forEach((item, i) => {
+    const a = -Math.PI / 2 + i * step;
+    const x = Math.cos(a) * WHEEL_R, y = Math.sin(a) * WHEEL_R;
+    const on = i === w.hover;
+    if (i === w.selected) glowDot(ctx, x, y + 34, 4, color, 0.9);
+    ctx.save();
+    if (on) {
+      ctx.translate(x, y);
+      ctx.scale(1.18, 1.18);
+      ctx.translate(-x, -y);
+    }
+    item.draw(ctx, x, y, 19, color, on || w.hover < 0 ? 1 : 0.55, now);
+    ctx.restore();
+  });
+  const shown = w.items[w.hover >= 0 ? w.hover : w.selected];
+  if (shown) neonLabel(ctx, shown.label, 0, 0, color, { size: 13 });
   ctx.restore();
 }
 
@@ -763,6 +857,7 @@ function setDrawMode(on, keepVisible = false) {
     commitText();
     state.pending = null;
     state.placing = null;
+    state.wheel = null;
     state.erasing = false;
     state.pointer = null;
     toggleHelp(false);
@@ -994,7 +1089,7 @@ function onKey(e) {
   if (capture) {
     e.preventDefault();
     // On attend la vraie touche : Maj, Ctrl ou Alt seuls ne suffisent pas.
-    if (!['Shift', 'Control', 'Alt', 'Meta', 'AltGraph', 'CapsLock', 'Dead'].includes(e.key)) finishCapture(eventCombo(e));
+    if (!['Shift', 'Control', 'Alt', 'Meta', 'AltGraph', 'CapsLock', 'Dead'].includes(e.key)) finishCaptureChecked(eventCombo(e));
     return;
   }
   if (document.activeElement === $('help-search')) {
@@ -1027,14 +1122,51 @@ function onKey(e) {
   if (!state.drawMode) return;
   e.preventDefault();
   if (state.placing && e.key === 'Shift') return setRegular(true);
+  if (state.wheel && e.key === 'Escape') return closeWheel();
+  // Touche maintenue : la répétition ne rouvre pas la roue.
+  if (e.repeat && state.wheel && held?.trigger === `key:${e.code}`) return;
   if (eggOpen()) {
     closeEgg();
     return;
   }
   if (watchSecret(e)) return;
-  if (action && ACTIONS[action]) ACTIONS[action]();
-  else if (action) plugins.actions.get(action)?.run();
+  runAction(action, `key:${e.code}`);
 }
+
+// Touche ou bouton qui a déclenché la dernière action, tant qu'il reste enfoncé.
+let held = null;
+
+function runAction(action, trigger) {
+  if (!action) return;
+  held = { trigger };
+  if (ACTIONS[action]) ACTIONS[action]();
+  else plugins.actions.get(action)?.run();
+}
+
+/** Relâchement : une roue ouverte en maintenant la touche prend le choix visé. */
+function release(trigger) {
+  if (held?.trigger !== trigger) return;
+  held = null;
+  const w = state.wheel;
+  if (w && w.trigger === trigger && performance.now() - w.openedAt > 250 && w.hover >= 0) pickWheel();
+}
+
+// Boutons de souris en raccourci : clic molette et boutons latéraux (4, 5).
+window.addEventListener('mousedown', (e) => {
+  const combo = mouseCombo(e);
+  if (!combo) return;
+  e.preventDefault(); // ni défilement automatique (molette) ni page précédente / suivante
+  if (capture) return finishCaptureChecked(combo);
+  if (!state.drawMode || helpOpen()) return;
+  runAction(keymap.map.get(combo), `mouse:${e.button}`);
+});
+window.addEventListener('mouseup', (e) => {
+  if (!mouseCombo(e)) return;
+  e.preventDefault();
+  release(`mouse:${e.button}`);
+});
+window.addEventListener('auxclick', (e) => e.preventDefault());
+window.addEventListener('keyup', (e) => release(`key:${e.code}`));
 
 // ───────────────────────── Aide ─────────────────────────
 
@@ -1208,7 +1340,7 @@ function startCapture(button) {
   capture = { action: button.dataset.action, index: Number(button.dataset.index), button };
   button.classList.add('capturing');
   button.textContent = '…';
-  $('help-status').textContent = `Nouvelle touche pour « ${actionLabel(capture.action)} » : appuie dessus (clic ailleurs pour annuler)`;
+  $('help-status').textContent = `Nouvelle touche pour « ${actionLabel(capture.action)} » : appuie sur une touche ou un bouton de souris (molette, 4, 5) · clic ailleurs pour annuler`;
   // Le raccourci global est libéré pendant la saisie, sinon Windows garderait F10 pour lui.
   if (tauri) invoke('capture_shortcut', { on: true });
 }
@@ -1223,6 +1355,15 @@ function cancelCapture() {
 
 /** Copie modifiable des raccourcis en vigueur (formes canoniques). */
 const currentShortcuts = () => Object.fromEntries(Object.entries(keymap.byAction).map(([a, list]) => [a, [...list]]));
+
+/** Le raccourci global (hors du dessin) passe par Windows : il doit rester une touche du clavier. */
+function finishCaptureChecked(combo) {
+  if (capture.action === 'basculerDessin' && isMouseCombo(combo)) {
+    $('help-status').textContent = 'Ce raccourci marche hors du dessin : choisis une touche du clavier';
+    return;
+  }
+  finishCapture(combo);
+}
 
 function finishCapture(combo) {
   const { action, index } = capture;
@@ -1477,9 +1618,17 @@ const pos = (e) => ({ x: e.clientX, y: e.clientY, t: performance.now() });
 
 fxCv.addEventListener('pointerdown', (e) => {
   if (!state.drawMode) return;
-  fxCv.setPointerCapture(e.pointerId);
+  if (e.button === 1 || e.button === 3 || e.button === 4) return; // boutons de raccourci (voir mousedown)
   const p = pos(e);
   state.pointer = p;
+  if (state.wheel) {
+    // Roue ouverte : un clic choisit, un clic au centre ou au dehors referme.
+    wheelHover(p);
+    if (e.button === 0 && dist(state.wheel, p) < WHEEL_R + 60) pickWheel();
+    else closeWheel();
+    return;
+  }
+  fxCv.setPointerCapture(e.pointerId);
   // Un clic termine le texte en cours ; avec l'outil texte, il en ouvre un nouveau ici.
   // preventDefault garde le focus sur la zone de saisie.
   const wasEditing = !!state.editing;
@@ -1514,6 +1663,12 @@ fxCv.addEventListener('pointerdown', (e) => {
 
 fxCv.addEventListener('pointermove', (e) => {
   if (!state.drawMode) return;
+  if (state.wheel) {
+    state.pointer = pos(e);
+    wheelHover(state.pointer);
+    requestRender();
+    return;
+  }
   const events = e.getCoalescedEvents?.() ?? [e];
   for (const ev of events.length ? events : [e]) {
     const p = pos(ev);

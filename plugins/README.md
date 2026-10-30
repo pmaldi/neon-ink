@@ -52,6 +52,7 @@ puis `http://localhost:3000/src/index.html?plugins=exemple`, F10 pour dessiner.
 | `remove(o)`, `objects(type)`, `objectAt(p, r, type)` | Effacer, lister, trouver sous un point |
 | `color`, `width`, `dashed`, `board`, `palette` | État courant et couleurs de NeonInk |
 | `draw` | Primitives néon : `neon(ctx, path, couleur, épaisseur, alpha, éclat, tirets)`, `glowDot`, `glowLine`, `badge`, `label(ctx, texte, x, y, couleur, { size, alpha })`, `path(points, fermé, lissé)` |
+| `wheel({ items, selected, onPick })` | Roue de sélection autour du pointeur. `items` : `[{ label, draw(ctx, x, y, taille, couleur, alpha, now) }]`. Touche ou bouton maintenu : relâcher sur un choix le prend ; simple appui : on clique sur le choix. `onPick(index)` reçoit le choix |
 | `snap(p)` | Point aimanté sur le quadrillage du papier à carreaux |
 | `toast(message)`, `render()`, `refreshHud()` | Message, nouvelle image, barre d'état |
 

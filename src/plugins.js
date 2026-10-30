@@ -71,6 +71,11 @@ export function createPluginHost(host) {
         return null;
       },
       snap: (p) => host.snap(p),
+      /**
+       * Roue de sélection autour du pointeur : { items: [{ label, draw(ctx, x, y, taille, couleur, alpha, now) }],
+       * selected, onPick(index) }. Maintenir la touche puis relâcher sur un choix, ou appuyer puis cliquer.
+       */
+      wheel: (opts) => host.wheel(opts),
       toast: (msg, ms) => host.toast(msg, ms),
       render: () => host.render(),
       refreshHud: () => host.refreshHud(),

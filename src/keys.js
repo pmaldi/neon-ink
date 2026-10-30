@@ -15,6 +15,8 @@ const isLetter = (k) => k.length === 1 && /\p{L}/u.test(k);
 
 function normalizeKey(key) {
   if (key.length === 1) return key === ' ' ? 'Space' : key.toUpperCase();
+  const mouse = /^(?:mouse|souris)\s*([345])$/i.exec(key);
+  if (mouse) return `Mouse${mouse[1]}`;
   const alias = ALIASES[key.toLowerCase()];
   if (alias) return alias;
   if (/^f\d{1,2}$/i.test(key)) return key.toUpperCase();
@@ -58,6 +60,18 @@ export function parseCombo(text) {
   return canonical(mods, normalizeKey(key));
 }
 
+// Boutons de souris utilisables comme raccourcis : molette (clic), boutons latéraux 4 et 5.
+// Le clic gauche dessine et le clic droit gomme : ils restent réservés.
+const MOUSE_BUTTONS = { 1: 'Mouse3', 3: 'Mouse4', 4: 'Mouse5' };
+
+/** Combinaison d'un bouton de souris (« Mouse4 », « Ctrl+Mouse3 »), ou null pour gauche et droit. */
+export function mouseCombo(e) {
+  const key = MOUSE_BUTTONS[e.button];
+  return key ? canonical({ ctrl: e.ctrlKey || e.metaKey, alt: e.altKey, shift: e.shiftKey }, key) : null;
+}
+
+export const isMouseCombo = (combo) => /(^|\+)Mouse[345]$/.test(combo);
+
 /** Combinaison canonique d'un événement clavier. */
 export function eventCombo(e) {
   return canonical({ ctrl: e.ctrlKey || e.metaKey, alt: e.altKey, shift: e.shiftKey }, normalizeKey(e.key));
@@ -91,7 +105,10 @@ export function buildKeymap(shortcuts) {
   return { map, byAction, errors };
 }
 
-const PRETTY = { Escape: 'Échap', Delete: 'Suppr', Backspace: '⌫', Space: 'Espace', Enter: 'Entrée', Shift: 'Maj', Tab: 'Tab' };
+const PRETTY = {
+  Escape: 'Échap', Delete: 'Suppr', Backspace: '⌫', Space: 'Espace', Enter: 'Entrée', Shift: 'Maj', Tab: 'Tab',
+  Mouse3: 'Clic molette', Mouse4: 'Souris 4', Mouse5: 'Souris 5',
+};
 
 /** Affichage d'une combinaison pour l'aide : « Ctrl+Z », « Maj+K », « Échap ». */
 export function prettyCombo(combo) {
