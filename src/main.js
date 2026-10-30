@@ -1,4 +1,5 @@
 import { recognize, smoothFree } from './shapes.js';
+import { STAMPS, stamp, stampAt } from './stamps.js';
 import { PALETTE, buildPath, neon, glowLine, glowDot, badge, arrow, neonText, layoutText, textFont, TEXT_LINE_HEIGHT } from './render.js';
 import { checkUpdate } from './update.js';
 import { buildKeymap, eventCombo, prettyCombo } from './keys.js';
@@ -21,7 +22,9 @@ const sctx = staticCv.getContext('2d'), fctx = fxCv.getContext('2d');
 
 const state = {
   drawMode: false,
-  tool: 'pen', // pen | eraser | cutter | steps | text
+  tool: 'pen', // pen | eraser | cutter | steps | text | stamp
+  stamp: 0, // forme choisie dans STAMPS
+  placing: null, // forme en cours de pose : { a, b, regular }
   dashed: false, // traits en tirets
   editing: null, // texte en cours de frappe
   color: PALETTE.b,
@@ -295,11 +298,12 @@ function frame() {
   clear(fctx);
   drawObjects(fctx, state.objects.filter((o) => !o.inStatic), now);
   if (state.active) drawActive(now);
+  if (state.placing) drawPlacing();
   if (state.editing) drawEditing(now);
   drawParticles(fctx);
   drawCursor();
 
-  const busy = state.active || state.editing || state.particles.length || state.objects.some((o) => !o.inStatic);
+  const busy = state.active || state.placing || state.editing || state.particles.length || state.objects.some((o) => !o.inStatic);
   if (busy) requestRender();
   else maybeHide();
 }
@@ -330,6 +334,14 @@ function drawActive(now) {
   const tip = pts[pts.length - 1];
   const pulse = 0.85 + Math.sin(now / 70) * 0.15;
   glowDot(fctx, tip.x, tip.y, a.width * 3.4 * pulse, a.color, 0.9);
+}
+
+/** Aperçu de la forme pendant qu'on la pose. */
+function drawPlacing() {
+  const { a, b, regular } = state.placing;
+  if (dist(a, b) < DRAG_START) return;
+  const s = stamp(STAMPS[state.stamp].kind, a, b, { regular, width: state.width });
+  neon(fctx, buildPath(s.pts, s.closed, s.smooth), state.color, state.width, 0.85, 0.2, state.dashed ? { width: state.width } : null);
 }
 
 function drawCursor() {
@@ -376,6 +388,23 @@ function drawCursor() {
     ctx.moveTo(p.x - 5, p.y + h / 2);
     ctx.lineTo(p.x + 5, p.y + h / 2);
     ctx.stroke();
+  } else if (state.tool === 'stamp') {
+    if (state.placing) return ctx.restore();
+    // Croix de visée et petite vignette de la forme choisie.
+    ctx.shadowColor = state.color.glow;
+    ctx.shadowBlur = 8;
+    ctx.strokeStyle = state.color.hex === PALETTE.k.hex ? '#ffffff' : state.color.hex;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(p.x - 9, p.y);
+    ctx.lineTo(p.x + 9, p.y);
+    ctx.moveTo(p.x, p.y - 9);
+    ctx.lineTo(p.x, p.y + 9);
+    ctx.stroke();
+    ctx.restore();
+    const s = stamp(STAMPS[state.stamp].kind, { x: p.x + 12, y: p.y + 12 }, { x: p.x + 34, y: p.y + 34 }, { regular: true, width: 2 });
+    neon(ctx, buildPath(s.pts, s.closed, s.smooth), state.color, 2, 0.75);
+    return;
   } else if (state.tool === 'steps' && !state.active) {
     ctx.restore();
     badge(ctx, p.x, p.y, STEP_R, state.nextStep, state.color, { alpha: 0.4, scale: 0.85 });
@@ -432,6 +461,16 @@ function finishStroke(freehand) {
   const o = { id: nextId++, kind: res.kind, color: a.color, width: a.width, dash: a.dash, pts: res.pts, closed: res.closed, smooth: res.smooth, born: performance.now() };
   if (res.kind !== 'free' && res.kind !== 'dot') o.morph = prepMorph(raw, res.pts, res.closed);
   state.objects.push(o);
+}
+
+/** Pose la forme : glisser = cadre de la forme, simple clic = taille par défaut. */
+function finishStamp() {
+  const { a, b, regular } = state.placing;
+  state.placing = null;
+  const kind = STAMPS[state.stamp].kind;
+  const opts = { regular, width: state.width };
+  const res = dist(a, b) < DRAG_START ? stampAt(kind, a, opts) : stamp(kind, a, b, opts);
+  state.objects.push({ id: nextId++, kind: res.kind, color: state.color, width: state.width, dash: state.dashed, pts: res.pts, closed: res.closed, smooth: res.smooth, born: performance.now() });
 }
 
 function addStep(p) {
@@ -604,18 +643,15 @@ function clearAll() {
 // ───────────────────────── Interface ─────────────────────────
 
 const TOOL_LABEL = { pen: '✎ Stylo', eraser: '⌫ Gomme', cutter: '✂ Gomme précise', steps: '① Étapes', text: '⌶ Texte' };
-let toastTimer = 0, idleTimer = 0;
+const toolLabel = () => (state.tool === 'stamp' ? `Formes : ${STAMPS[state.stamp].label}` : TOOL_LABEL[state.tool]);
+let toastTimer = 0;
 
 function updateHud() {
   document.documentElement.style.setProperty('--c', state.color.glow === state.color.hex ? state.color.hex : '#d9d9e6');
   $('hud-color').textContent = state.color.name;
-  $('hud-tool').textContent = TOOL_LABEL[state.tool];
+  $('hud-tool').textContent = toolLabel();
   $('hud-shapes').textContent = (state.shapes ? '◇ Formes auto' : '〰 Main levée') + (state.dashed ? ' · ┄ Tirets' : '');
   $('hud-width').textContent = `${state.width} px`;
-  const hud = $('hud');
-  hud.classList.remove('idle');
-  clearTimeout(idleTimer);
-  idleTimer = setTimeout(() => hud.classList.add('idle'), 2500);
 }
 
 function toast(msg, ms = 900) {
@@ -642,7 +678,7 @@ function setBoard(board) {
 
 function setTool(tool) {
   state.tool = tool;
-  toast(TOOL_LABEL[tool]);
+  toast(toolLabel());
   updateHud();
   requestRender();
 }
@@ -668,6 +704,7 @@ function setDrawMode(on, keepVisible = false) {
     if (state.active) finishStroke(false);
     commitText();
     state.pending = null;
+    state.placing = null;
     state.erasing = false;
     state.pointer = null;
     toggleHelp(false);
@@ -680,6 +717,76 @@ function setDrawMode(on, keepVisible = false) {
 function exitDrawMode() {
   if (tauri) invoke('set_draw_mode', { on: false, keepVisible: true });
   else setDrawMode(false, true);
+}
+
+// ───────────────────────── Capture d'écran ─────────────────────────
+
+const BOARD_COLOR = { black: '#050608', white: '#f7f7f4' };
+let capturing = false;
+
+/** Pixels BGRA reçus de Tauri (largeur, hauteur, puis les pixels) → canvas. */
+function screenCanvas(buffer) {
+  const head = new DataView(buffer, 0, 8);
+  const w = head.getUint32(0, true), h = head.getUint32(4, true);
+  const px = new Uint8ClampedArray(buffer, 8, w * h * 4);
+  for (let i = 0; i < px.length; i += 4) {
+    const b = px[i];
+    px[i] = px[i + 2];
+    px[i + 2] = b;
+    px[i + 3] = 255;
+  }
+  const cv = document.createElement('canvas');
+  cv.width = w;
+  cv.height = h;
+  cv.getContext('2d').putImageData(new ImageData(px, w, h), 0, 0);
+  return cv;
+}
+
+/** Écran + dessins, enregistrés dans Images\NeonInk et copiés dans le presse-papiers. */
+async function screenshot() {
+  if (capturing) return;
+  capturing = true;
+  commitText();
+  try {
+    const cv = document.createElement('canvas');
+    cv.width = staticCv.width;
+    cv.height = staticCv.height;
+    const ctx = cv.getContext('2d');
+    if (state.board) {
+      ctx.fillStyle = BOARD_COLOR[state.board];
+      ctx.fillRect(0, 0, cv.width, cv.height);
+    } else if (tauri) {
+      const shot = await tauri.core.invoke('capture_screen');
+      ctx.drawImage(screenCanvas(shot), 0, 0, cv.width, cv.height);
+    } else {
+      ctx.fillStyle = '#16161c';
+      ctx.fillRect(0, 0, cv.width, cv.height);
+    }
+    // Les tracés dans leur état final, sans curseur ni animation en cours.
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    drawObjects(ctx, state.objects.filter((o) => !o.dying), performance.now() + 1e6);
+    const blob = await new Promise((resolve) => cv.toBlob(resolve, 'image/png'));
+    const copied = await navigator.clipboard?.write([new ClipboardItem({ 'image/png': blob })]).then(() => true, () => false);
+    $('flash').classList.remove('go');
+    void $('flash').offsetWidth;
+    $('flash').classList.add('go');
+    if (tauri) {
+      const path = await tauri.core.invoke('save_capture', new Uint8Array(await blob.arrayBuffer()));
+      const name = path.split(/[\\/]/).pop();
+      toast(`Capture enregistrée : Images › NeonInk › ${name}${copied ? ' (copiée aussi)' : ''}`, 3500);
+    } else {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'NeonInk.png';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+  } catch (err) {
+    console.error(err);
+    toast(`Capture impossible : ${err}`, 4000);
+  } finally {
+    capturing = false;
+  }
 }
 
 // ───────────────────────── Raccourcis ─────────────────────────
@@ -749,11 +856,18 @@ const ACTIONS = {
   },
   tirets() {
     state.dashed = !state.dashed;
-    if (state.tool !== 'pen' && state.tool !== 'steps') state.tool = 'pen';
+    if (!['pen', 'steps', 'stamp'].includes(state.tool)) state.tool = 'pen';
     toast(state.dashed ? '┄ Traits en tirets' : '━ Traits pleins');
     updateHud();
     requestRender();
   },
+  formes() {
+    // Première pression : l'outil Formes ; les suivantes passent à la forme suivante.
+    if (state.tool === 'stamp') state.stamp = (state.stamp + 1) % STAMPS.length;
+    setTool('stamp');
+  },
+  capture: () => screenshot(),
+  dossierCaptures: () => (tauri ? invoke('open_captures') : toast('Dossier des captures : version Windows uniquement')),
   tableauNoir: () => setBoard('black'),
   tableauBlanc: () => setBoard('white'),
 };
@@ -794,6 +908,13 @@ function firework(x, y) {
   requestRender();
 }
 
+/** Maj pendant la pose d'une forme : forme régulière (carré, cercle…). */
+function setRegular(on) {
+  if (!state.placing) return;
+  state.placing.regular = on;
+  requestRender();
+}
+
 function onKey(e) {
   if (capture) {
     e.preventDefault();
@@ -819,6 +940,7 @@ function onKey(e) {
   }
   if (!state.drawMode) return;
   e.preventDefault();
+  if (state.placing && e.key === 'Shift') return setRegular(true);
   if (eggOpen()) {
     closeEgg();
     return;
@@ -837,6 +959,8 @@ const HELP_SECTIONS = [
     ['toutEffacer', 'Tout effacer'],
     ['epaisseurPlus', 'Trait plus épais (ou molette)'],
     ['epaisseurMoins', 'Trait plus fin'],
+    ['capture', 'Capture d’écran avec les dessins (Images › NeonInk)'],
+    ['dossierCaptures', 'Ouvrir le dossier des captures'],
     ['aide', 'Afficher / masquer cette aide'],
   ]],
   ['Outils', [
@@ -845,6 +969,7 @@ const HELP_SECTIONS = [
     ['gommePrecise', 'Gomme précise : une partie du trait'],
     ['etapes', 'Étapes : clic = pastille, glisser = trait'],
     ['texte', 'Texte : écrire au clavier (Échap pour finir)'],
+    ['formes', 'Formes : rectangle, rond, triangle, étoile, flèche (encore = suivante, Maj = régulière)'],
     ['tirets', 'Trait plein / en tirets'],
     ['nouvelleSequence', 'Nouvelle séquence d’étapes'],
     ['formesAuto', 'Formes auto on/off (Maj en relâchant : main levée)'],
@@ -1055,6 +1180,8 @@ fxCv.addEventListener('pointerdown', (e) => {
     state.erasing = 'whole';
     state.lastErase = null;
     eraseAlong(p);
+  } else if (e.button === 0 && state.tool === 'stamp') {
+    state.placing = { a: p, b: p, regular: e.shiftKey };
   } else if (e.button === 0 && state.tool === 'steps') {
     state.pending = p;
   } else if (e.button === 0) {
@@ -1078,12 +1205,15 @@ fxCv.addEventListener('pointermove', (e) => {
     } else if (state.erasing) eraseAlong(p);
   }
   state.pointer = pos(e);
+  if (state.placing) Object.assign(state.placing, { b: state.pointer, regular: e.shiftKey });
   requestRender();
 });
 
 function endPointer(e) {
   if (state.pending && e.type === 'pointerup') addStep(state.pending);
   state.pending = null;
+  if (state.placing && e.type === 'pointerup') finishStamp();
+  state.placing = null;
   if (state.active) finishStroke(e.shiftKey);
   state.erasing = false;
   requestRender();
@@ -1103,6 +1233,7 @@ window.addEventListener('wheel', (e) => {
 }, { passive: false });
 window.addEventListener('contextmenu', (e) => e.preventDefault());
 window.addEventListener('keydown', onKey);
+window.addEventListener('keyup', (e) => e.key === 'Shift' && setRegular(false));
 window.addEventListener('resize', resize);
 
 // ───────────────────────── Démarrage ─────────────────────────

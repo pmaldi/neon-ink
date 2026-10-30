@@ -7,6 +7,13 @@ et le projet respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Ajouté
+- Capture d'écran avec les dessins (**Ctrl+S**) : l'écran et les tracés sont enregistrés en PNG dans Images › NeonInk et copiés dans le presse-papiers. La barre d'état et le liseré n'y figurent pas. **Ctrl+Maj+S** ouvre le dossier.
+- Outil Formes (**M**) : rectangle, rond, triangle, étoile et flèche posés d'un glisser, sans les dessiner. **M** de nouveau passe à la forme suivante, **Maj** donne un carré, un cercle ou une forme régulière, un simple clic pose une forme de taille moyenne.
+
+### Modifié
+- La barre d'état reste bien lisible : elle ne pâlit plus au bout de quelques secondes.
+
 ## [0.6.0] - 2026-10-30
 
 ### Ajouté

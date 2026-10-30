@@ -9,6 +9,8 @@ Appuyez sur **F10**, dessinez, puis **F10** à nouveau : les tracés sont masqu�
 - Reconnaissance de formes : trait droit, courbe, cercle, ellipse, carré, rectangle, triangle. Le tracé se transforme en forme propre avec une animation
 - Gomme entière (le trait se consume en étincelles) ou gomme précise (n'enlève qu'une partie du trait)
 - Traits en tirets et texte écrit au clavier, en néon lui aussi
+- Formes toutes faites : rectangle, rond, triangle, étoile, flèche, posées d'un glisser
+- Capture d'écran avec les dessins, enregistrée dans Images › NeonInk et copiée dans le presse-papiers
 - Étapes numérotées : chaque clic pose une pastille ①, ②, ③… reliée à la précédente par une flèche courbe. Glisser dessine un trait ou une forme sans quitter le mode. Effacer une étape renumérote les suivantes
 - Plusieurs écrans : le calque s'ouvre sur l'écran où se trouve la souris
 - Léger : aucune image n'est calculée quand rien ne bouge, et la fenêtre est masquée hors du mode dessin
@@ -30,12 +32,15 @@ Appuyez sur **F10**, dessinez, puis **F10** à nouveau : les tracés sont masqu�
 | **N** | Nouvelle séquence d'étapes (repart à 1) |
 | **I** | Texte : le curseur apparaît sous la souris, on écrit au clavier (Entrée : nouvelle ligne, Échap ou clic : terminer) |
 | **L** | Traits pleins / en tirets |
+| **M** | Formes : rectangle, rond, triangle, étoile, flèche. Encore **M** : forme suivante. Glisser pour la tracer (**Maj** : carré, cercle, forme régulière), clic : taille par défaut |
 | **F** | Formes auto activées / désactivées |
 | **Maj** en relâchant | Garder ce tracé à main levée |
 | **Ctrl+Z** / **Retour arrière** | Annuler le dernier élément |
 | **Suppr** / **X** | Tout effacer (animé) |
 | **Molette** / **+ −** | Épaisseur du trait |
 | **Maj+K** / **Maj+W** | Tableau noir / tableau blanc (même touche : retour à l'écran) |
+| **Ctrl+S** | Capture d'écran avec les dessins (Images › NeonInk, copiée aussi dans le presse-papiers) |
+| **Ctrl+Maj+S** | Ouvrir le dossier des captures |
 | **H** | Aide à l'écran |
 
 Les lettres suivent la disposition du clavier (AZERTY compris). Le bouton gomme d'un stylet de tablette fonctionne aussi.

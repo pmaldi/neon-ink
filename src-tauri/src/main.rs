@@ -1,6 +1,7 @@
 // Pas de console noire en version finale sous Windows.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod capture;
 mod config;
 mod settings;
 mod updater;
@@ -210,6 +211,9 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             set_draw_mode,
             hide_overlay,
+            capture::capture_screen,
+            capture::save_capture,
+            capture::open_captures,
             config::get_config,
             config::open_link,
             config::save_shortcuts,

@@ -91,7 +91,6 @@ body.drawing #frame { opacity: 1; }
   transition: opacity 200ms ease, transform 260ms cubic-bezier(.2, .9, .3, 1.2);
 }
 body.drawing #hud { opacity: 1; transform: none; }
-body.drawing #hud.idle { opacity: 0.38; }
 
 .pill {
   display: flex;
@@ -137,6 +136,17 @@ body.drawing #hud.idle { opacity: 0.38; }
   transition: opacity 160ms ease, transform 200ms ease;
 }
 #toast.show { opacity: 1; transform: translate(-50%, 0) scale(1); }
+
+/* Éclair blanc de l'appareil photo après une capture */
+#flash {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: #fff;
+  opacity: 0;
+}
+#flash.go { animation: flash 420ms ease-out; }
+@keyframes flash { from { opacity: 0.55; } to { opacity: 0; } }
 
 /* Aide */
 /* ───────── Aide : panneau animé ───────── */

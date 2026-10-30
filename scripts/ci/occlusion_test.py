@@ -58,6 +58,68 @@ def press_f10():
     user32.keybd_event(0x79, scan, 2, 0)
 
 
+def key(vk, down=True):
+    user32.keybd_event(vk, user32.MapVirtualKeyW(vk, 0), 0 if down else 2, 0)
+    time.sleep(0.05)
+
+
+def tap(*vks):
+    """Appuie sur une combinaison (ex. Ctrl+S) puis relâche dans l'ordre inverse."""
+    for vk in vks:
+        key(vk)
+    for vk in reversed(vks):
+        key(vk, False)
+    time.sleep(0.3)
+
+
+def drag(a, b, steps=20):
+    user32.SetCursorPos(*a)
+    time.sleep(0.1)
+    user32.mouse_event(0x0002, 0, 0, 0, 0)  # bouton gauche enfoncé
+    for i in range(1, steps + 1):
+        user32.SetCursorPos(a[0] + (b[0] - a[0]) * i // steps, a[1] + (b[1] - a[1]) * i // steps)
+        time.sleep(0.02)
+    user32.mouse_event(0x0004, 0, 0, 0, 0)  # relâché
+    time.sleep(1.2)  # fin de l'animation du tracé
+
+
+def check_capture(shown):
+    """Outil Formes, un rectangle, Ctrl+S : la capture doit montrer la page de test sous le rectangle,
+    sans la barre d'état du calque."""
+    from PIL import Image
+
+    folder = os.path.join(os.environ["USERPROFILE"], "Pictures", "NeonInk")
+    started = time.time()
+    tap(0x4D)  # M : outil Formes (rectangle)
+    drag((200, 300), (520, 520))
+    tap(0x11, 0x53)  # Ctrl+S
+    found = None
+    for _ in range(20):
+        time.sleep(0.5)
+        pngs = [os.path.join(folder, f) for f in os.listdir(folder)] if os.path.isdir(folder) else []
+        pngs = [f for f in pngs if f.endswith(".png") and os.path.getmtime(f) >= started - 1]
+        if pngs:
+            found = max(pngs, key=os.path.getmtime)
+            break
+    if not found:
+        return False, ["- Capture : **aucun fichier** dans Images\\NeonInk"]
+    time.sleep(0.5)
+    img = Image.open(found).convert("RGB")
+    w, h = img.size
+    page = (0x11, 0x22, 0x33)
+    near = lambda c, ref, tol=14: all(abs(x - y) <= tol for x, y in zip(c, ref))
+    corner, hud, edge = img.getpixel((60, h - 60)), img.getpixel((w // 2, 28)), img.getpixel((200, 410))
+    checks = {
+        "taille du calque": (w, h) == (shown[4], shown[5]),
+        "page visible sous le calque": near(corner, page),
+        "barre d'état absente": near(hud, page),
+        "rectangle dessiné": edge[2] > 150 and not near(edge, page, 40),
+    }
+    lines = [f"- Capture `{os.path.basename(found)}` {w}×{h} : coin {corner}, haut {hud}, bord du rectangle {edge}"]
+    lines += [f"  - {name} : {'ok' if ok else '**ÉCHEC**'}" for name, ok in checks.items()]
+    return all(checks.values()), lines
+
+
 def windows_of(pid):
     """Fenêtres de premier niveau du processus : (hwnd, titre, visible, style étendu, largeur, hauteur)."""
     found = []
@@ -161,6 +223,8 @@ def main():
         time.sleep(1)
         drawing = rate()
         screenshot(args.shots, f"{tag}-dessin.png")
+        captured, capture_lines = check_capture(shown) if shown else (False, [])
+        screenshot(args.shots, f"{tag}-formes.png")
         press_f10()
         time.sleep(2.5)
         after = rate()
@@ -172,6 +236,7 @@ def main():
             f"- Calque en mode dessin : {info}",
             f"- Navigateur, images signalées par seconde : avant {before:.1f} · pendant le dessin {drawing:.1f} · après {after:.1f}",
             f"- Résultat : **{verdict}** (attendu : {'figé' if args.expect == 'freeze' else 'fluide'})",
+            *capture_lines,
         ]
         print("\n".join(lines))
         summary = os.environ.get("GITHUB_STEP_SUMMARY")
@@ -181,6 +246,9 @@ def main():
         if not shown:
             print("Le calque ne s'est pas affiché : test non concluant.")
             return 2
+        if not captured:
+            print("La capture d'écran ne correspond pas.")
+            return 1
         return 0 if frozen == (args.expect == "freeze") else 1
     finally:
         if app:
