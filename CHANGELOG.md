@@ -7,6 +7,8 @@ et le projet respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-30
+
 ### Ajouté
 - Tableau noir (**Maj+K**) et tableau blanc (**Maj+W**) : un fond opaque pour dessiner sur une page vierge ; la même touche revient à l'écran.
 - Mises à jour automatiques : recherche au démarrage puis toutes les 2 heures, installation dès que NeonInk est inactif. Désactivable dans le menu de l'icône.
@@ -70,7 +72,8 @@ et le projet respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 - Étapes numérotées reliées par des flèches (touche **S**, nouvelle séquence avec **N**).
 - Aide à l'écran (touche **H**) et prise en charge de plusieurs écrans.
 
-[Unreleased]: https://github.com/pmaldi/neon-ink/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/pmaldi/neon-ink/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/pmaldi/neon-ink/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/pmaldi/neon-ink/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/pmaldi/neon-ink/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/pmaldi/neon-ink/compare/v0.1.0...v0.2.0
