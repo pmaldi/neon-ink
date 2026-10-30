@@ -107,7 +107,7 @@ Sans rien installer : le workflow GitHub Actions (`.github/workflows/build.yml`)
 Il teste aussi, sur la session Windows du runner :
 
 - l'affichage du calque en mode dessin au-dessus d'une page Edge animée (`scripts/ci/occlusion_test.py`) ;
-- l'installation, la migration depuis une ancienne version installée dans AppData, la mise à jour passive avec relance et la désinstallation (`scripts/ci/install_test.ps1`).
+- l'installation, la migration depuis une ancienne version installée dans AppData, la mise à jour silencieuse lancée par un utilisateur standard, la mise à jour passive avec relance et la désinstallation (`scripts/ci/install_test.ps1`).
 
 ## Tester l'interface dans un navigateur
 
@@ -145,10 +145,10 @@ NeonInk consulte la dernière release GitHub 15 secondes après son démarrage, 
 
 Avec « Installer les mises à jour automatiquement » (coché par défaut dans le menu de l'icône), la nouvelle version s'installe dès que NeonInk est inactif : pas de dessin en cours ni de tracé gardé en mémoire. Sinon, l'entrée « Installer la version X » apparaît dans le menu.
 
-- Version installée : l'installateur se lance en mode passif (barre de progression, aucune question) puis relance NeonInk. Windows demande l'autorisation administrateur, l'application étant dans Program Files.
+- Version installée : aucune fenêtre, aucune demande d'autorisation. L'installateur crée une tâche planifiée « NeonInk Update » exécutée par le compte système, que tout utilisateur peut lancer (comme les mises à jour de Chrome ou Edge). NeonInk la lance ; elle télécharge le nouvel exécutable depuis les releases GitHub et le met à la place de l'ancien ; NeonInk redémarre dessus en une seconde, au prochain moment où il ne sert pas. La tâche ne prend aucun paramètre et ne télécharge que depuis ce dépôt. Les installations antérieures à 0.8.0, sans cette tâche, passent une dernière fois par l'installateur et la demande d'autorisation.
 - Version portable : l'exécutable se remplace lui-même puis redémarre (il doit se trouver dans un dossier modifiable).
 
-Au passage en mode dessin suivant, un message confirme la nouvelle version. Si une installation demandée depuis le menu échoue, la page de la release s'ouvre dans le navigateur. Le code se trouve dans `src/update.js` et `src-tauri/src/updater.rs`.
+Au passage en mode dessin suivant, un message confirme la nouvelle version. Si une installation demandée depuis le menu échoue, la page de la release s'ouvre dans le navigateur. Le code se trouve dans `src/update.js`, `src-tauri/src/updater.rs` et `src-tauri/src/system_update.rs`.
 
 ## Tests
 

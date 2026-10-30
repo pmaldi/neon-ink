@@ -7,6 +7,9 @@ et le projet respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Modifié
+- Mises à jour vraiment silencieuses pour la version installée : plus de demande d'autorisation administrateur ni d'installateur. Une tâche système créée à l'installation remplace l'exécutable, puis NeonInk redémarre en une seconde quand il ne sert pas. Les installations précédentes demandent l'autorisation une dernière fois pour passer à cette version.
+
 ## [0.7.0] - 2026-10-30
 
 ### Ajouté

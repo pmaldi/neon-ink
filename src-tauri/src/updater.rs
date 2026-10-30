@@ -5,15 +5,17 @@
 //! NeonInk est inactif : ni dessin en cours, ni tracé gardé en mémoire. Sinon l'entrée du
 //! menu de l'icône propose de l'installer.
 //!
-//! Version installée (présence de `uninstall.exe`) : l'installateur est lancé en mode
-//! passif (`/P`, sans question) et relance NeonInk ensuite (`/R`). Windows demande les droits
-//! administrateur, l'application étant installée dans Program Files.
+//! Version installée (présence de `uninstall.exe`) : la tâche système créée par l'installateur
+//! remplace l'exécutable sans demande d'autorisation (voir `system_update`), puis NeonInk
+//! redémarre dès qu'il ne sert pas. Sans cette tâche (installation antérieure à 0.8.0),
+//! l'installateur est lancé en mode passif (`/P /R`) et Windows demande les droits administrateur.
 //! Version portable : l'exécutable se remplace lui-même puis redémarre.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
+use std::time::{Duration, Instant, SystemTime};
 
 use serde::{Deserialize, Serialize};
 use tauri::{menu::MenuItem, AppHandle, Emitter, Manager, State, Wry};
@@ -143,6 +145,9 @@ fn install(app: &AppHandle, update: &Update) -> Result<(), String> {
     let dir = exe.parent().ok_or("dossier de l'exécutable introuvable")?;
 
     if dir.join("uninstall.exe").exists() {
+        if silent_install(app, update, &exe, dir, manual)? {
+            return Ok(());
+        }
         let url = update.setup.as_deref().ok_or("pas d'installateur dans la release")?;
         let setup = std::env::temp_dir().join(format!("NeonInk_{}_setup.exe", update.version));
         download(url, &setup)?;
@@ -164,6 +169,39 @@ fn install(app: &AppHandle, update: &Update) -> Result<(), String> {
     }
     app.exit(0);
     Ok(())
+}
+
+fn modified(p: &Path) -> Option<SystemTime> {
+    std::fs::metadata(p).and_then(|m| m.modified()).ok()
+}
+
+/// Mise à jour par la tâche système, sans demande d'autorisation. Faux si la tâche n'existe pas.
+fn silent_install(app: &AppHandle, update: &Update, exe: &Path, dir: &Path, manual: bool) -> Result<bool, String> {
+    let before = modified(exe);
+    let since = SystemTime::now();
+    if !crate::system_update::trigger() {
+        return Ok(false);
+    }
+    let state = app.state::<Updates>();
+    state.label(&format!("Installation de la version {}…", update.version));
+    let deadline = Instant::now() + Duration::from_secs(600);
+    while modified(exe) == before {
+        std::thread::sleep(Duration::from_secs(1));
+        match crate::system_update::status_since(dir, since) {
+            Some(s) if s.starts_with("ok") => {}
+            Some(s) => return Err(format!("tâche de mise à jour : {s}")),
+            None if Instant::now() > deadline => return Err("tâche de mise à jour sans réponse".into()),
+            None => {}
+        }
+    }
+    // Le nouvel exécutable est en place : on redémarre dessus, sans interrompre un dessin.
+    state.label(&format!("Version {} prête, redémarrage au prochain moment libre", update.version));
+    while !manual && !crate::is_idle() {
+        std::thread::sleep(Duration::from_secs(1));
+    }
+    Command::new(exe).arg(AFTER_UPDATE_ARG).spawn().map_err(|e| e.to_string())?;
+    app.exit(0);
+    Ok(true)
 }
 
 fn old_path(exe: &Path) -> PathBuf {

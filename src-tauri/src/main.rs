@@ -4,6 +4,7 @@
 mod capture;
 mod config;
 mod settings;
+mod system_update;
 mod updater;
 
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -184,6 +185,11 @@ fn hide_overlay(app: AppHandle) {
 }
 
 fn main() {
+    // Modes sans interface : tâche de mise à jour (compte système), installation de cette tâche.
+    if let Some(code) = system_update::run_cli() {
+        std::process::exit(code);
+    }
+
     // Après une mise à jour portable, l'ancienne version doit d'abord se fermer.
     if std::env::args().any(|a| a == updater::AFTER_UPDATE_ARG) {
         std::thread::sleep(std::time::Duration::from_millis(1500));

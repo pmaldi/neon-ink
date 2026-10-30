@@ -22,3 +22,24 @@
     RMDir "$R9"
   ${EndIf}
 !macroend
+
+!macro NSIS_HOOK_POSTINSTALL
+  ; Tâche système des mises à jour : les versions suivantes s'installeront sans demander
+  ; les droits administrateur (voir src-tauri/src/system_update.rs).
+  nsExec::Exec '"$INSTDIR\${MAINBINARYNAME}.exe" --register-update-task'
+  Pop $R9
+  ${If} $R9 != 0
+    DetailPrint "Tâche de mise à jour non créée (code $R9)"
+  ${EndIf}
+  Delete "$INSTDIR\${MAINBINARYNAME}.old"
+  Delete "$INSTDIR\${MAINBINARYNAME}.new"
+!macroend
+
+!macro NSIS_HOOK_PREUNINSTALL
+  nsExec::Exec '"$SYSDIR\schtasks.exe" /Delete /TN "NeonInk Update" /F'
+  Pop $R9
+  ; Fichiers laissés par une mise à jour silencieuse.
+  Delete "$INSTDIR\${MAINBINARYNAME}.old"
+  Delete "$INSTDIR\${MAINBINARYNAME}.new"
+  Delete "$INSTDIR\update-status.txt"
+!macroend
