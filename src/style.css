@@ -408,6 +408,21 @@ body.concealed #static,
 body.concealed #fx { visibility: hidden; }
 
 /* Outil texte : la saisie passe par une zone invisible placée au curseur (fenêtre des accents au bon endroit). */
+#prompt-input {
+  position: fixed;
+  z-index: 30;
+  width: 260px;
+  padding: 7px 12px;
+  border: 1px solid currentColor;
+  border-radius: 10px;
+  background: rgba(10, 12, 20, 0.92);
+  box-shadow: 0 0 14px -2px currentColor;
+  font: 600 15px 'Segoe UI', system-ui, sans-serif;
+  outline: none;
+}
+#prompt-input::placeholder { color: rgba(255, 255, 255, 0.4); }
+#prompt-input[hidden] { display: none; }
+
 #text-input {
   position: fixed;
   width: 1px;

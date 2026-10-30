@@ -55,6 +55,15 @@ puis `http://localhost:3000/src/index.html?plugins=exemple`, F10 pour dessiner.
 | `wheel({ items, selected, onPick })` | Roue de sélection autour du pointeur. `items` : `[{ label, draw(ctx, x, y, taille, couleur, alpha, now) }]`. Touche ou bouton maintenu : relâcher sur un choix le prend ; simple appui : on clique sur le choix. `onPick(index)` reçoit le choix |
 | `snap(p)` | Point aimanté sur le quadrillage du papier à carreaux |
 | `toast(message)`, `render()`, `refreshHud()` | Message, nouvelle image, barre d'état |
+| `changed()` | À appeler après avoir modifié un objet déjà posé (déplacé, renommé…) : NeonInk le redessine. *NeonInk 0.11* |
+| `defineOverlay(nom, { active(), draw(ctx, now, pointeur) })` | Calque dessiné par-dessus tout, à chaque image, tant que `active()` est vrai (spot, minuteur…). `pointeur` : `{ x, y }` ou null. *NeonInk 0.11* |
+| `prompt({ x, y, value, placeholder })` | Champ de saisie néon près du point : rend une promesse du texte tapé (Entrée ou clic ailleurs), ou `null` (Échap, champ vide). *NeonInk 0.11* |
+| `screen()` | Promesse d'une image (canvas, pixels physiques) de l'écran sous NeonInk, sans les dessins ; `null` hors Windows. *NeonInk 0.11* |
+| `size`, `pointer` | Taille de l'écran `{ w, h }` en pixels CSS ; dernière position du pointeur ou `null`. *NeonInk 0.11* |
+
+Les fonctions marquées *NeonInk 0.11* n'existent pas dans les versions plus anciennes : un plugin
+qui en a besoin le vérifie au début d'`activate` et lève une erreur claire
+(`if (!api.defineOverlay) throw new Error('nécessite NeonInk 0.11 ou plus récent')`).
 
 NeonInk s'occupe du reste : annulation, gomme, effacement animé, capture d'écran, masquage
 avec F10, aide et configuration des touches.

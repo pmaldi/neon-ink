@@ -15,6 +15,7 @@ export function createPluginHost(host) {
   const types = new Map(); // « plugin.type » → définition
   const tools = new Map(); // « plugin:id » → outil
   const actions = new Map(); // nom d'action → { label, key, run, plugin }
+  const overlays = new Map(); // « plugin.nom » → calque { active(), draw(ctx, now, pointeur) }
 
   function apiFor(manifest) {
     const id = manifest.id;
@@ -56,6 +57,15 @@ export function createPluginHost(host) {
         own.actions.push(name(action));
       },
 
+      /**
+       * Calque dessiné par-dessus tout à chaque image tant que `active()` est vrai
+       * (spot, minuteur…) : { active(), draw(ctx, now, pointeur) }. `pointeur` peut être null.
+       */
+      defineOverlay(overlay, def) {
+        overlays.set(name(overlay), { ...def, plugin: id });
+        own.overlays.push(name(overlay));
+      },
+
       useTool: (tool) => host.setTool(`plugin:${name(tool)}`),
       toolActive: (tool) => host.state.tool === `plugin:${name(tool)}`,
       /** Ajoute un objet `type` ({ x, y, …données libres }). `deps` : objets dont il dépend. */
@@ -80,6 +90,16 @@ export function createPluginHost(host) {
       toast: (msg, ms) => host.toast(msg, ms),
       render: () => host.render(),
       refreshHud: () => host.refreshHud(),
+      /** À appeler après avoir modifié un objet déjà posé (déplacé, renommé…), pour le redessiner. */
+      changed: () => host.changed(),
+      /** Champ de saisie près de { x, y } : Promise du texte tapé, ou null si annulé. */
+      prompt: (opts) => host.prompt(opts),
+      /** Image de l'écran sous NeonInk (canvas, en pixels physiques), ou null hors Windows. */
+      screen: () => host.screen(),
+      /** Taille de l'écran en pixels CSS : { w, h }. */
+      get size() { return host.size(); },
+      /** Dernière position du pointeur ({ x, y }) ou null. */
+      get pointer() { return host.state.pointer; },
     };
   }
 
@@ -96,6 +116,22 @@ export function createPluginHost(host) {
     hit,
     draw(ctx, o, frame) {
       types.get(o.type)?.draw(ctx, o, frame);
+    },
+    /** Dessine les calques actifs ; rend vrai s'il y en a (il faut alors redessiner à l'image suivante). */
+    overlays(ctx, now, pointer) {
+      let any = false;
+      for (const o of overlays.values()) {
+        if (!o.active?.()) continue;
+        any = true;
+        ctx.save();
+        try {
+          o.draw(ctx, now, pointer);
+        } catch (err) {
+          console.error(err);
+        }
+        ctx.restore();
+      }
+      return any;
     },
     layer: (o) => types.get(o.type)?.layer ?? 0,
     animated(o) {
@@ -117,7 +153,7 @@ export function createPluginHost(host) {
         if (!manifest.id || typeof mod.activate !== 'function') throw new Error('ce fichier n’est pas un plugin NeonInk');
         if (manifest.api !== API_VERSION) throw new Error(`${manifest.nom ?? manifest.id} demande une autre version de NeonInk`);
         if (loaded.has(manifest.id)) return loaded.get(manifest.id).manifest;
-        loaded.set(manifest.id, { manifest, tools: [], types: [], actions: [] });
+        loaded.set(manifest.id, { manifest, tools: [], types: [], actions: [], overlays: [] });
         mod.activate(apiFor(manifest));
         return manifest;
       } catch (err) {
@@ -135,6 +171,7 @@ export function createPluginHost(host) {
       own.tools.forEach((k) => tools.delete(k));
       own.types.forEach((k) => types.delete(k));
       own.actions.forEach((k) => actions.delete(k));
+      own.overlays.forEach((k) => overlays.delete(k));
       loaded.delete(id);
     },
   };

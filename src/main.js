@@ -70,6 +70,13 @@ const plugins = createPluginHost({
   toast: (msg, ms) => toast(msg, ms),
   render: () => requestRender(),
   refreshHud: () => updateHud(),
+  changed() {
+    state.staticDirty = true;
+    requestRender();
+  },
+  prompt: (opts) => askText(opts),
+  screen: () => screenUnder(),
+  size: () => ({ w: innerWidth, h: innerHeight }),
 });
 let dpr = 1;
 let raf = 0;
@@ -347,10 +354,11 @@ function frame() {
   pluginTool()?.preview?.(fctx, now);
   if (state.editing) drawEditing(now);
   drawParticles(fctx);
+  const overlays = plugins.overlays(fctx, now, state.pointer);
   if (state.wheel) drawWheel(now);
   drawCursor();
 
-  const busy = state.active || state.placing || state.wheel || pluginTool()?.busy?.() || state.editing || state.particles.length || state.objects.some((o) => !o.inStatic);
+  const busy = overlays || state.active || state.placing || state.wheel || pluginTool()?.busy?.() || state.editing || state.particles.length || state.objects.some((o) => !o.inStatic);
   if (busy) requestRender();
   else maybeHide();
 }
@@ -894,6 +902,58 @@ function screenCanvas(buffer) {
   return cv;
 }
 
+/** L'écran sous NeonInk (sans les dessins), en canvas ; null hors Windows ou en cas d'échec. */
+async function screenUnder() {
+  if (!tauri) return null;
+  try {
+    return screenCanvas(await tauri.core.invoke('capture_screen'));
+  } catch (err) {
+    console.error(err);
+    return null;
+  }
+}
+
+// ───────────────────────── Saisie de texte des plugins ─────────────────────────
+
+const promptInput = $('prompt-input');
+let promptDone = null;
+
+/**
+ * Petit champ de saisie néon près de (x, y). Rend le texte (Entrée, ou clic ailleurs) ou null (Échap, champ vide).
+ * Une seule saisie à la fois : en ouvrir une autre annule la précédente.
+ */
+function askText({ x = innerWidth / 2, y = innerHeight / 2, value = '', placeholder = '' } = {}) {
+  promptDone?.(null);
+  promptInput.value = value;
+  promptInput.placeholder = placeholder;
+  promptInput.style.color = state.color === PALETTE.k ? '#ffffff' : state.color.hex;
+  promptInput.style.left = `${Math.max(8, Math.min(innerWidth - 268, x - 130))}px`;
+  promptInput.style.top = `${Math.max(8, Math.min(innerHeight - 48, y + 18))}px`;
+  promptInput.hidden = false;
+  promptInput.focus();
+  promptInput.select();
+  return new Promise((resolve) => {
+    promptDone = (text) => {
+      promptDone = null;
+      promptInput.hidden = true;
+      promptInput.blur();
+      resolve(text);
+    };
+  });
+}
+
+promptInput.addEventListener('keydown', (e) => {
+  e.stopPropagation();
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    promptDone?.(promptInput.value.trim());
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    promptDone?.(null);
+  }
+});
+promptInput.addEventListener('blur', () => promptDone?.(promptInput.value.trim() || null));
+
 /** Écran + dessins, enregistrés dans Images\NeonInk et copiés dans le presse-papiers. */
 async function screenshot() {
   if (capturing) return;
@@ -1108,6 +1168,7 @@ function onKey(e) {
     if (!['Shift', 'Control', 'Alt', 'Meta', 'AltGraph', 'CapsLock', 'Dead'].includes(e.key)) finishCaptureChecked(eventCombo(e));
     return;
   }
+  if (document.activeElement === promptInput) return; // la saisie gère Entrée et Échap elle-même
   if (document.activeElement === $('help-search')) {
     // La frappe va dans le champ de recherche ; Échap le vide, puis le quitte.
     if (e.key === 'Escape') {
