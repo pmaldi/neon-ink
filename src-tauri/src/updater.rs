@@ -125,7 +125,7 @@ fn start(app: &AppHandle, update: Update, manual: bool) {
     state.label(&format!("Téléchargement de la version {}…", update.version));
     let app = app.clone();
     std::thread::spawn(move || {
-        if let Err(err) = install(&app, &update) {
+        if let Err(err) = install(&app, &update, manual) {
             eprintln!("mise à jour impossible : {err}");
             // Demandée depuis le menu : on ouvre la page de téléchargement. Automatique : on
             // n'insiste pas, l'entrée du menu reste disponible.
@@ -140,7 +140,7 @@ fn start(app: &AppHandle, update: Update, manual: bool) {
     });
 }
 
-fn install(app: &AppHandle, update: &Update) -> Result<(), String> {
+fn install(app: &AppHandle, update: &Update, manual: bool) -> Result<(), String> {
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
     let dir = exe.parent().ok_or("dossier de l'exécutable introuvable")?;
 
