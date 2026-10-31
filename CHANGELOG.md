@@ -7,6 +7,9 @@ et le projet respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Ajouté
+- Un deuxième secret se cache en mode dessin : un jeu de rythme, quatre niveaux et leur musique, avec meilleurs scores. Indice : cinq lettres, comme un battement de cœur.
+
 ## [0.11.0] - 2026-10-30
 
 ### Ajouté

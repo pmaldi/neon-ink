@@ -6,6 +6,7 @@ import { createPluginHost } from './plugins.js';
 import { checkUpdate, compareVersions } from './update.js';
 import { buildKeymap, eventCombo, isMouseCombo, mouseCombo, parseCombo, prettyCombo } from './keys.js';
 import { playEgg, eggOpen, closeEgg } from './egg.js';
+import { openPulse, closePulse } from './pulse.js';
 import { dist, lerp, clamp, cumulative, subPath, pointAt, resample, polygonArea, polyDist } from './geom.js';
 
 // Durées des animations (ms)
@@ -880,6 +881,7 @@ function setDrawMode(on, keepVisible = false) {
     state.pointer = null;
     toggleHelp(false);
     closeEgg();
+    closePulse();
   }
   requestRender();
 }
@@ -1132,9 +1134,10 @@ const ACTIONS = {
 };
 for (const [action, key] of Object.entries(COLOR_ACTIONS)) ACTIONS[action] = () => setColor(key);
 
-// Petit secret : K, A, L tapés à la suite en mode dessin.
-const SECRET = 'KAL';
-let typed = '', typedAt = 0, colorsBefore = [];
+// Petits secrets tapés à la suite en mode dessin : K, A, L (message animé) et P, U, L, S, E (jeu de rythme).
+const SECRETS = { KAL: openKal, PULSE: openPulse };
+const SECRET_MAX = Math.max(...Object.keys(SECRETS).map((k) => k.length));
+let typed = '', typedAt = 0, before = [];
 
 function watchSecret(e) {
   if (e.key.length !== 1 || e.ctrlKey || e.altKey || e.metaKey) {
@@ -1144,20 +1147,31 @@ function watchSecret(e) {
   const now = performance.now();
   if (now - typedAt > 1500) typed = '';
   typedAt = now;
-  colorsBefore = [...colorsBefore, state.color].slice(-SECRET.length);
-  typed = (typed + e.key.toUpperCase()).slice(-SECRET.length);
-  if (typed !== SECRET) return false;
+  // Chaque lettre a déclenché son raccourci (couleur, outil, tirets) : on garde l'état d'avant.
+  before = [...before, { color: state.color, tool: state.tool, dashed: state.dashed }].slice(-SECRET_MAX);
+  typed = (typed + e.key.toUpperCase()).slice(-SECRET_MAX);
+  const code = Object.keys(SECRETS).find((k) => typed.endsWith(k));
+  if (!code) return false;
+  const saved = before[before.length - code.length];
   typed = '';
-  // « K » a choisi le noir au passage : on rend la couleur d'avant.
-  state.color = colorsBefore[0] ?? state.color;
+  before = [];
+  if (saved) {
+    state.color = saved.color;
+    state.dashed = saved.dashed;
+    if (state.tool !== saved.tool) setTool(saved.tool);
+  }
   updateHud();
+  SECRETS[code]();
+  return true;
+}
+
+function openKal() {
   playEgg({
     version: appVersion ?? 'dev',
     links,
     openLink: (url) => (tauri ? invoke('open_link', { url }) : window.open(url, '_blank')),
     firework,
   });
-  return true;
 }
 
 /** Gerbe d'étincelles multicolores (utilisée par le petit secret). */
