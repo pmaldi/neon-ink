@@ -7,6 +7,8 @@ et le projet respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-10-31
+
 ### Ajouté
 - Un deuxième secret se cache en mode dessin : un jeu de rythme, quatre niveaux et leur musique, avec meilleurs scores. Indice : cinq lettres, comme un battement de cœur.
 
@@ -152,7 +154,8 @@ et le projet respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 - Étapes numérotées reliées par des flèches (touche **S**, nouvelle séquence avec **N**).
 - Aide à l'écran (touche **H**) et prise en charge de plusieurs écrans.
 
-[Unreleased]: https://github.com/pmaldi/neon-ink/compare/v0.11.0...HEAD
+[Unreleased]: https://github.com/pmaldi/neon-ink/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/pmaldi/neon-ink/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/pmaldi/neon-ink/compare/v0.10.2...v0.11.0
 [0.10.2]: https://github.com/pmaldi/neon-ink/compare/v0.10.1...v0.10.2
 [0.10.1]: https://github.com/pmaldi/neon-ink/compare/v0.10.0...v0.10.1
